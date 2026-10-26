@@ -129,6 +129,43 @@
     return null;
   }
 
+  // ---------- Ausweichen (MZ, 26.10.2026, Handytest L3: Ziel von einem anderen Ding verdeckt) ----------
+  // Ablenker halten Abstand zum Ziel: kreuzt einer (jetzt oder in den nächsten 0,9s) die Bahn des Ziels, gleitet er weich
+  // nach oben oder unten weg (andere Tiefe), so weit der Bereich oben…unten es zulässt. Je Ablenker: o.aus = Versatz in px
+  // (die Level rechnen ihn in lage() zur y-Lage dazu). liste: [{ o, k (Kasten jetzt), vx (px/s relativ zum Ziel) }].
+  // o.test = true (Testhilfe „ueberdecken“) weicht nicht aus.
+  function ausweichen(zk, liste, dt, oben, unten, abstand) {
+    const a = abstand == null ? 10 : abstand;
+    liste.forEach(({ o, k, vx }) => {
+      if (o.aus == null) o.aus = 0;
+      if (o.ausSoll == null) o.ausSoll = o.aus;
+      if (!o.test && zk) {
+        const v = (vx || 0) * 0.9, x0 = Math.min(k.x, k.x + v), x1 = Math.max(k.x + k.w, k.x + k.w + v);
+        const quer = x0 < zk.x + zk.w + a && x1 > zk.x - a, hoch = k.y < zk.y + zk.h + a && k.y + k.h > zk.y - a;
+        if (quer && hoch) {
+          const rauf = k.y + k.h - (zk.y - a), runter = zk.y + zk.h + a - k.y;
+          const raumOben = k.y - oben, raumUnten = unten - (k.y + k.h);
+          let d;
+          if (rauf <= raumOben && (rauf <= runter || runter > raumUnten)) d = -rauf;
+          else if (runter <= raumUnten) d = runter;
+          else d = raumOben > raumUnten ? -Math.max(0, raumOben) : Math.max(0, raumUnten);   // nicht ganz frei: so weit es geht
+          o.ausSoll = o.aus + d;
+        }
+      }
+      o.aus += (o.ausSoll - o.aus) * Math.min(1, dt * 7);
+    });
+  }
+  // Anteil der Zielfläche, den das größte überlappende Ding verdeckt (0–1) – für Testhilfe und Prüfung
+  function verdeckt(zk, kaesten) {
+    if (!zk || !(zk.w > 0 && zk.h > 0)) return 0;
+    let m = 0;
+    kaesten.forEach(k => {
+      const w = Math.min(zk.x + zk.w, k.x + k.w) - Math.max(zk.x, k.x), h = Math.min(zk.y + zk.h, k.y + k.h) - Math.max(zk.y, k.y);
+      if (w > 0 && h > 0) m = Math.max(m, (w * h) / (zk.w * zk.h));
+    });
+    return m;
+  }
+
   // ---------- Bildschirm-Lage eines Punkts im Level-Bild (gleich wie szene.levelBild „cover“) ----------
   function abbildung(nr, B, H) { return SZ.abbildung(nr, B, H); }
 
@@ -287,6 +324,20 @@
     }
     return h.map(v => (max > 0 ? v / max : 0));
   }
+  // Hörbarer Einsatz in Sekunden (MZ, 26.10.2026): erster 10-ms-Block, dessen Spitze 25 % der eigenen Spitze erreicht –
+  // gleiche Regel wie Material/Skripte/einsatz.py (Wert dort in klaenge.js; hier am entschlüsselten Klang nachgemessen)
+  function einsatzVon(daten, rate) {
+    const b = Math.max(1, Math.round(rate * 0.01)), env = [];
+    let sp = 0;
+    for (let i = 0; i < daten.length; i += b) {
+      let m = 0; const e = Math.min(daten.length, i + b);
+      for (let k = i; k < e; k++) { const v = daten[k] < 0 ? -daten[k] : daten[k]; if (v > m) m = v; }
+      env.push(m); if (m > sp) sp = m;
+    }
+    if (!(sp > 0)) return 0;
+    for (let i = 0; i < env.length; i++) if (env[i] >= 0.25 * sp) return i * b / rate;
+    return 0;
+  }
   // ---------- Dateien laden (MP3-Zuschnitt über klaenge.js) ----------
   // Entschlüsseln geht auch vor dem ersten Tippen (eigener stiller Offline-Kontext, 22,05 kHz) – dann ist alles bereit.
   let dekoder = null;
@@ -321,8 +372,10 @@
     const schluessel = (e.ton || '') + '|' + e.name;
     if (klaenge[schluessel]) return klaenge[schluessel];
     const info = e.ton && window.FK ? FK.klangInfo(e.ton) : null;
-    const k = { dauer: info ? info.dauer : klemm(e.laenge || 1.6, 0.6, 6), huelle: null, puffer: null, daten: null, echt: false, fertig: null, faktor: 1 };
-    const erzeugt = () => { const d = erzeugen(e.name, k.dauer, artVorgabe); k.daten = d; k.huelle = huelleVon(d, RATE); k.dauer = d.length / RATE; };
+    // einsatz = Sekunden bis zum hörbaren Einsatz (ab hier zählt die Reaktion), erst aus klaenge.js, nach dem Laden gemessen
+    const k = { dauer: info ? info.dauer : klemm(e.laenge || 1.6, 0.6, 6), huelle: null, puffer: null, daten: null, echt: false, fertig: null, faktor: 1,
+      einsatz: info && info.einsatz > 0 ? info.einsatz : 0 };
+    const erzeugt = () => { const d = erzeugen(e.name, k.dauer, artVorgabe); k.daten = d; k.huelle = huelleVon(d, RATE); k.dauer = d.length / RATE; k.einsatz = einsatzVon(d, RATE); };
     if (e.ton) {
       // echte Aufnahme: laden und entschlüsseln (auch ohne Ton – für die Hülle); bis dahin eine ruhige Ersatz-Hülle.
       // Lädt sie nicht, wird der Platzhalter erzeugt.
@@ -331,6 +384,7 @@
       k.fertig = ladePuffer(e.ton).then(p => {
         if (!p) return;
         k.puffer = p; k.echt = true; k.dauer = p.duration; k.huelle = huelleVon(p.getChannelData(0), p.sampleRate);
+        k.einsatz = einsatzVon(p.getChannelData(0), p.sampleRate);
       }).then(() => { if (!k.echt) { k.faktor = 1; erzeugt(); } });
     } else erzeugt();
     klaenge[schluessel] = k;
@@ -364,6 +418,56 @@
     griff.pegel = (p2, zeit) => { try { v.gain.setTargetAtTime(Math.max(0.0001, p2 * f), a.currentTime, zeit || 0.2); } catch (e) { /* egal */ } };
     return griff;
   }
+  // ---------- Hör-Uhr (MZ, 26.10.2026: „Ton und Punktevergabe nicht sauber synchron“) ----------
+  // Alle Zeiten auf der Skala von AudioContext.currentTime. Ein Geräusch, das spielen() bei griff.t0 startet, kommt bei
+  // griff.t0 + k.einsatz hörbar am Ohr an. hoerJetzt() = die Kontextzeit, die gerade am Ohr ankommt: aus
+  // getOutputTimestamp() (glatt, enthält die Ausgabe-Latenz des Geräts), sonst currentTime − (baseLatency + outputLatency).
+  // Gemessen in Edge (26.10.2026): beide Wege stimmen auf ±5 ms überein (Latenz 0,05s am PC; Handy oft 0,05–0,15s, Bluetooth
+  // mehr – soweit der Browser sie meldet).
+  function latenz() {
+    if (!ctx) return 0;
+    const o = ctx.outputLatency, b = ctx.baseLatency;
+    let l = (o > 0 ? o : 0) + (b > 0 ? b : 0);
+    if (!(o > 0) && ctx.getOutputTimestamp) {   // Safari meldet outputLatency nicht: aus dem Zeitstempel schätzen
+      const ts = ctx.getOutputTimestamp();
+      if (ts && ts.performanceTime > 0 && ts.contextTime > 0) { const d = ctx.currentTime - (ts.contextTime + (performance.now() - ts.performanceTime) / 1000); if (d > l && d < 1) l = d; }
+    }
+    return klemm(l, 0, 1);
+  }
+  function hoerJetzt() {
+    if (!ctx) return 0;
+    if (ctx.getOutputTimestamp && ctx.state === 'running') {
+      const ts = ctx.getOutputTimestamp();
+      if (ts && ts.performanceTime > 0 && ts.contextTime > 0) {
+        const h = ts.contextTime + (performance.now() - ts.performanceTime) / 1000, d = ctx.currentTime - h;
+        if (d > -0.02 && d < 1) return h;
+      }
+    }
+    return ctx.currentTime - latenz();
+  }
+  // Kann ein Klang jetzt wirklich erklingen? (Ton an, Kontext läuft, Puffer entschlüsselt.) Ton aus = immer bereit.
+  function bereit(k) {
+    if (!tonAn()) return true;
+    const a = audio();
+    if (!a) return true;
+    return a.state === 'running' && !!(k.puffer || k.daten);
+  }
+  // Spieluhr an die Audiouhr koppeln: der Rahmen begrenzt dt auf 0,05s je Bild – auf langsamen Handys (< 20 Bilder/s)
+  // liefe die Spielzeit sonst hinter dem Ton her. Solange Ton läuft, zählt der Fortschritt von currentTime.
+  function takt() {
+    let letzt = null;
+    return {
+      schritt(dt) {
+        if (ctx && ctx.state === 'running' && tonAn()) {
+          const c = ctx.currentTime, d = letzt == null ? dt : klemm(c - letzt, 0, 0.25);
+          letzt = c; return d;
+        }
+        letzt = null; return dt;
+      },
+      zurueck() { letzt = null; },
+    };
+  }
+
   // Grundrauschen der Hörkabine (MZ, 26.10.2026: technisch erzeugt): Mischung aus rosa und braunem Rauschen (daten.js
   // rauschen.farbe), 8s, nahtlose Schleife (Ende mit gleicher Leistung in den Anfang überblendet), Lautstärke so geeicht, dass
   // rauschen.pegelRauschen = Verhältnis zu einem typischen Zielgeräusch ist. Alternativ eine Datei (rauschen.grundrauschen).
@@ -473,8 +577,8 @@
   if (knopf) knopf.addEventListener('click', () => setTimeout(tonUmschalten, 0));
   addEventListener('pagehide', () => musikMerken(true));
 
-  window.FOKUS_GEMEIN = { textLage, lerp, klemm, mischen, punkteNachZeit, effekte, ansage, platz, abbildung, LAUTSPRECHER,
-    ton: { an: tonAn, audio, klang, spielen, grundrauschen, artVon, effekt, musik, raum, vorladen, ladePuffer,
+  window.FOKUS_GEMEIN = { textLage, lerp, klemm, mischen, punkteNachZeit, effekte, ansage, platz, abbildung, ausweichen, verdeckt, LAUTSPRECHER,
+    ton: { an: tonAn, audio, klang, spielen, grundrauschen, artVon, effekt, musik, raum, vorladen, ladePuffer, latenz, hoerJetzt, bereit, takt, einsatzVon,
       get laeuft() { return !!ctx && ctx.state === 'running'; },
       // Testhilfe: was gerade klingt
       stand() { return { kontext: ctx ? ctx.state : 'keiner', musik: musikL ? { stelle: +musikStelle().toFixed(2) } : null, musikSoll,

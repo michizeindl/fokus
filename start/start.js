@@ -76,12 +76,15 @@
     const f = $('#fuss'), s = ' – ';
     const stueck = (t, tag) => { const e = el(tag || 'span', '', t); e.style.whiteSpace = 'nowrap'; return e; };
     const zeile = liste => { const p = el('p'); liste.forEach((e, i) => { if (i) p.append(s); p.append(e); }); return p; };
-    const z1 = zeile((K.kontakt || []).map(t => stueck(t)));
-    // „Datenschutz – Impressum“ bleibt als Paar zusammen
+    // Drei Zeilen (MZ, 26.10.2026): 1 Firmenname, 2 Anschrift, 3 Telefon – Internetadresse – Datenschutz – Impressum
+    // (Internetadresse, Datenschutz, Impressum unterstrichen, nichts verlinkt, nicht fett; „Datenschutz – Impressum“ bleibt beisammen)
+    const kontakt = K.kontakt || [];
+    const z1 = zeile(kontakt.slice(0, 1).map(t => stueck(t)));
+    const z1b = kontakt.length > 1 ? zeile(kontakt.slice(1).map(t => stueck(t))) : null;
     const recht = (K.rechtliches || []).length ? zeile((K.rechtliches || []).map(r => stueck(r.text, 'u'))) : null;
     const paar = recht ? (() => { const r = el('span'); r.style.whiteSpace = 'nowrap'; r.append(...[...recht.childNodes]); return r; })() : null;
-    const z2 = zeile([K.telefon, K.web].filter(Boolean).map(t => stueck(t)).concat(paar ? [paar] : []));
-    f.append(z1, z2);
+    const z2 = zeile([K.telefon ? stueck(K.telefon) : null, K.web ? stueck(K.web, 'u') : null, paar].filter(Boolean));
+    f.append(...[z1, z1b, z2].filter(Boolean));
   })();
 
   // ---------- Ton-Knopf und Musik der Sammlung (Phase 3: FOKUS.musik) ----------

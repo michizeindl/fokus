@@ -9,7 +9,7 @@
 // Testhilfen (Adresse):  #level=N  Level N öffnen (gesperrte nur mit #test)   #los  sofort starten (Titel läuft)
 //   #ziel=N  ab Ziel N spielen (mit #los)   #tempo=0.5  langsamer   #titel  Level-Titel bleibt stehen
 //   #ende=846  Beispiel-Endbild (&treffer=9&fehler=1&reaktion=0.62), nichts gespeichert   #abbruch=8  Beispiel-Abbruch
-//   window.FOKUS_TEST: zustand(), titelUeberspringen(), ende(punkte, {treffer, reaktion}), abbruch(zielNr)
+//   window.FOKUS_TEST: zustand(), titelUeberspringen(), ende(punkte, {treffer, reaktion}), abbruch(zielNr), ueberdecken() (L1/L3)
 (function () {
   'use strict';
   const R_ = window.Rahmen, D = window.FOKUS, FK = window.FK, SCH = window.FOKUS_SCHIRME, T = D.texte;
@@ -193,6 +193,8 @@
         treffer: stand ? stand.treffer : 0, ergebnisse: stand ? stand.ergebnisse.slice() : [], ziel: l && phase !== 'start' ? l.zustand() : null };
     },
     titelUeberspringen: () => SCH.titelEnde(),
+    // L1/L3: ein Ablenker deckt die untere Hälfte des Ziels ab und zieht mit (weicht nicht aus) → Lage des Ablenkers
+    ueberdecken() { const l = logik(lvNr); return l && l.testUeberdecken ? l.testUeberdecken() : null; },
     ende(punkte, o) { o = o || {}; location.hash = 'level=' + lvNr + '&ende=' + punkte + (o.treffer != null ? '&treffer=' + o.treffer : '') + (o.reaktion != null ? '&reaktion=' + o.reaktion : ''); location.reload(); },
     abbruch(z) { location.hash = 'level=' + lvNr + '&abbruch=' + (z || 8); location.reload(); },
   };

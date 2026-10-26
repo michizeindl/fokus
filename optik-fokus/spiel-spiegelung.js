@@ -22,21 +22,16 @@
     { name: 'Eimer', bewegung: 'liegt', zone: 'tief', groesse: 'mittel' }, { name: 'Strohhut', bewegung: 'treibt', zone: 'flach', groesse: 'mittel' }];
   const pool = () => (window.FOKUS_POOLS && window.FOKUS_POOLS.spiegelung) || ERSATZ;
 
-  // Motiv unter Wasser: leicht eingefärbt (tief stärker) und minimal weich – einmal je Motiv vorbereitet
+  // Motiv unter Wasser: nur leicht eingefärbt (tief etwas mehr), NICHT weichgezeichnet – im klaren Moment soll das Ziel
+  // scharf sein (MZ, 26.10.2026: Teichmuschel wirkte unscharf). Tiefe zeigt sich über Tönung und Größe (ZONE_F).
   function unterWasser(m, hoehe, zone, dpr) {
     const b = SZ.motivBild(m, hoehe, 4, dpr), c = b.c, g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-atop';
-    g.fillStyle = zone === 'tief' ? 'rgba(24,86,92,.36)' : 'rgba(40,120,120,.16)';
+    g.fillStyle = zone === 'tief' ? 'rgba(24,86,92,.22)' : 'rgba(40,120,120,.12)';
     g.fillRect(0, 0, c.width, c.height);
     g.globalCompositeOperation = 'source-over';
-    let fertig = c;
-    try {
-      const weich = document.createElement('canvas'); weich.width = c.width; weich.height = c.height;
-      const wg = weich.getContext('2d');
-      if (typeof wg.filter === 'string') { wg.filter = `blur(${(zone === 'tief' ? 1.1 : 0.5) * dpr}px)`; wg.drawImage(c, 0, 0); fertig = weich; }
-    } catch (e) { /* ohne Weichzeichnen */ }
-    return { c: fertig, w: b.w, h: b.h, pad: b.pad };
+    return { c, w: b.w, h: b.h, pad: b.pad };
   }
 
   window.FOKUS_LEVEL[3] = function (api) {
@@ -82,7 +77,8 @@
     }
     function bereiten(m, k, alsAblenker) {
       const zw = zonen(), zone = m.zone === 'tief' ? 'tief' : 'flach';
-      const basis = Math.min(B, H) * 0.25 * (GROESSE[m.groesse] || 1) * (ZONE_F[zone] || 1) * lerp(W.groesse, k, N) * (alsAblenker ? 0.95 : 1);
+      // faktor je Motiv (daten.js spiegelung.faktor, MZ 26.10.2026): z. B. Münze kleiner als ein Fisch der gleichen Größenklasse
+      const basis = Math.min(B, H) * 0.25 * (GROESSE[m.groesse] || 1) * (ZONE_F[zone] || 1) * lerp(W.groesse, k, N) * (alsAblenker ? 0.95 : 1) * ((W.faktor || {})[m.name] || 1);
       const img = SZ.bild(m.bild), sv = img ? (img.naturalWidth / img.naturalHeight) : 2;
       const hoehe = klemm(basis / Math.sqrt(Math.max(0.3, sv)), 22, H * 0.22);
       const bild = unterWasser(m, hoehe, zone, dpr);
@@ -100,10 +96,11 @@
       const dy = o.liegt ? 0 : o.m.bewegung === 'treibt' ? Math.sin(o.t * 1.3 + o.wob) * o.bild.h * 0.05 : Math.sin(o.t * 2.2 + o.wob) * o.bild.h * 0.08;
       const w = o.bild.w + o.bild.pad * 2, h = o.bild.h + o.bild.pad * 2;
       const alpha = o.liegt ? Math.min(1, o.t / 0.5, (o.dauer - o.t) / 0.5) : 1;
-      return { x, y: o.y + dy, w, h, pad: o.bild.pad, alpha };
+      return { x, y: o.y + dy + (o.aus || 0), w, h, pad: o.bild.pad, alpha };   // aus = Ausweichen (spiel-gemein.js)
     }
     function kasten(o, e) { const l = lage(o); e = e || 0; return { x: l.x + l.pad - e, y: l.y + l.pad - e, w: l.w - l.pad * 2 + e * 2, h: l.h - l.pad * 2 + e * 2 }; }
     const drin = (k, x, y) => x >= k.x && x <= k.x + k.w && y >= k.y && y <= k.y + k.h;
+    const mindestens = (k, m) => { const dw = Math.max(0, m - k.w) / 2, dh = Math.max(0, m - k.h) / 2; return { x: k.x - dw, y: k.y - dh, w: k.w + dw * 2, h: k.h + dh * 2 }; };
     // Wann ist das Ziel ganz im Bild? Erst dann beginnt der erste Klarblick
     function sichtbarAb(o) {
       if (o.liegt) return 0.5;
@@ -203,6 +200,11 @@
         if (phase === 'start') { uhr -= dt; if (uhr <= 0) naechstes(); return; }
         if (!ziel) return;
         ablenkerAuffuellen();
+        // Ablenker weichen dem Ziel aus (andere Tiefe), damit es nie verdeckt ist (MZ, 26.10.2026)
+        if (phase === 'aktiv') {
+          const zw = zonen(), vz = ziel.liegt ? 0 : (ziel.x1 - ziel.x0) / ziel.dauer;
+          G.ausweichen(kasten(ziel, 4), dinge.map(o => ({ o, k: kasten(o), vx: (o.liegt ? 0 : (o.x1 - o.x0) / o.dauer) - vz })), dt, zw.tief[0] - 10, zw.flach[1] + 10, 12);
+        }
         if (phase === 'aktiv' && ziel.t >= ziel.dauer) ergebnis('verpasst', ziel);
         else if (phase === 'pause') {
           ziel.weg += dt; uhr -= dt;
@@ -212,7 +214,8 @@
       },
       tipp(x, y) {
         if (!ziel || aus || phase !== 'aktiv') return false;
-        const zk = kasten(ziel, 10), aufZiel = ziel.t >= 0 && drin(zk, x, y);
+        // Trefferfläche des Ziels: Kasten + 10 px, mindestens 40 × 40 px (kleine Dinge wie die Münze bleiben antippbar)
+        const zk = mindestens(kasten(ziel, 10), 40), aufZiel = ziel.t >= 0 && drin(zk, x, y);
         const ab = !aufZiel && dinge.find(o => drin(kasten(o, 4), x, y));
         if (!aufZiel && !ab) return false;
         if (glanzWert > 0.5) { ergebnis('frueh', aufZiel ? ziel : ab, x, y); return true; }
@@ -222,8 +225,8 @@
       zeichne(g, b, h, laeuft) {
         if (hg) g.drawImage(hg, 0, 0, B, H);
         if (!laeuft) return;
-        const alle = dinge.map(o => ({ o })).concat(ziel ? [{ o: ziel, z: true }] : []);
-        alle.sort((p, q) => p.o.bild.h - q.o.bild.h);
+        // Ablenker nach Größe (kleine = weiter weg zuerst), das Ziel immer obenauf (MZ, 26.10.2026)
+        const alle = dinge.map(o => ({ o })).sort((p, q) => p.o.bild.h - q.o.bild.h).concat(ziel ? [{ o: ziel, z: true }] : []);
         alle.forEach(({ o, z }) => {
           const l = lage(o);
           let a = l.alpha;
@@ -258,12 +261,25 @@
         g.restore(); g.restore();
         fx.zeichne(g, B, H, api.oben());
       },
+      // Testhilfe (nur zur Laufzeit, FOKUS_TEST.ueberdecken()): ein Ablenker zieht genau mit dem Ziel und deckt dessen untere
+      // Hälfte ab, ohne auszuweichen – zum Prüfen, dass ein Tipp auf das teilverdeckte Ziel als Treffer zählt
+      testUeberdecken() {
+        if (!ziel) return null;
+        const p = pool().find(q => q !== ziel.m && q.bild) || pool().find(q => q !== ziel.m);
+        const o = bereiten(p, ziel.k, true);
+        Object.assign(o, { test: true, rechts: ziel.rechts, x0: ziel.x0, x1: ziel.x1, dauer: ziel.dauer, t: ziel.t, liegt: ziel.liegt, wob: ziel.wob,
+          y: ziel.y + ziel.bild.h * 0.45 });
+        dinge.push(o);
+        const k = kasten(o);
+        return { x: k.x + k.w / 2, y: k.y + k.h / 2, w: k.w, h: k.h };
+      },
       zustand() {
         if (!ziel) return { nr: nr + 1, phase };
         const k = kasten(ziel);
         return { nr: ziel.k + 1, name: ziel.m.name, phase, t: ziel.t, dauer: ziel.dauer, erster: ziel.erster, takt: ziel.takt, klar: ziel.klar,
           istKlar: glanzWert <= 0.5, bisKlar: (() => { const t = ziel.t - ziel.erster; if (t < 0) return -t; const im = t % ziel.takt; return im < ziel.klar ? 0 : ziel.takt - im; })(),
           x: k.x + k.w / 2, y: k.y + k.h / 2, w: k.w, h: k.h, sichtbar: k.x + k.w > 0 && k.x < B,
+          verdeckt: +G.verdeckt(k, dinge.map(o => kasten(o))).toFixed(3),
           ablenker: dinge.map(o => { const q = kasten(o); return { name: o.m.name, x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h }; }) };
       },
     };

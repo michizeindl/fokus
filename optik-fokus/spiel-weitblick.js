@@ -9,6 +9,9 @@
 //   (vor der Ansage wird Tippen ignoriert – kein Fehler, MZ 26.10.2026)
 //   verpasst  Zeitgrenze abgelaufen
 //   Tippen ins Leere zählt nicht. Die Brille bleibt von Ziel zu Ziel, wie sie ist.
+// Synchron mit dem Ton (MZ, 26.10.2026): Mit Ton zählen Reaktion, Text-Einblendung und Zeitgrenze ab dem Moment, in dem
+// die Ansage am Ohr hörbar wird (Start im AudioContext + hörbarer Einsatz der Datei + Ausgabe-Latenz, TON.hoerJetzt).
+// Ist die Aufnahme noch nicht entschlüsselt oder der Ton noch nicht frei, wartet die Ansage (höchstens WARTEN).
 // Werte in daten.js (FOKUS.weitblick), Zonen am Stadtplatz-Bild eingemessen (daten.js level[4].zonen).
 // Geräusche: Pool „weitblick“ (motive.js), echte Aufnahmen nach optik-fokus/klaenge/weitblick/<nr>-<name>.mp3.
 (function () {
@@ -38,8 +41,11 @@
     return c;
   }
 
+  const WARTEN = 2.5;   // höchstens so lange wartet die Ansage, bis ihr Geräusch wirklich erklingen kann
+
   window.FOKUS_LEVEL[5] = function (api) {
     const W = D.weitblick, N = D.regeln.ziele, R = D.regeln;
+    const uhrTon = TON.takt();
     let B = 0, H = 0, dpr = 1, hgSchl = '', bgNah = null, bgFern = null, scharf = null, tischY = 0;
     let dinge = [], nr = 0, ziel = null, phase = 'aus', uhr = 0, aus = false, brille = W.brilleStart || 'nah', mix = 0, reihe = [], zuletzt = [];
     const fx = G.effekte(), tempo = api.tempo || 1;
@@ -97,7 +103,9 @@
       return { m, fern, w, h, bild, st: SZ.stufen(bild.c, maxU * dpr, 6), t: 0, weg: 0 };
     }
     function platzieren(liste) {
-      const b = baender(), belegt = { fern: [], nah: [] };
+      // eine gemeinsame Belegung für nah und fern: im Querformat reichen hohe Dinge auf dem Tisch sonst über die fernen
+      // (MZ, 26.10.2026: nichts darf das Ziel verdecken)
+      const b = baender(), alle = [], belegt = { fern: alle, nah: alle };
       return liste.filter(o => {
         const band = o.fern ? b.fern : b.nah, unterkante = band[0] + Math.random() * Math.max(0, band[1] - band[0]);
         const y0 = Math.max(b.oben, Math.min(unterkante, b.unten) - o.h);
@@ -125,25 +133,45 @@
       const z = bereiten(m, k); z.ziel = true;
       let alle = [z].concat(wahl.slice(0, zahl - 1).map(p => bereiten(p, k)));
       alle = platzieren(alle);
-      if (!alle.includes(z)) { z.x = B / 2 - z.w / 2; z.y = (z.fern ? baender().fern[0] : baender().nah[0]) - z.h; alle.unshift(z); }
+      if (!alle.includes(z)) {
+        z.x = B / 2 - z.w / 2; z.y = (z.fern ? baender().fern[0] : baender().nah[0]) - z.h;
+        // Notlage mittig: Dinge, die das Ziel berühren würden, fallen weg (nichts verdeckt das Ziel)
+        alle = alle.filter(o => o.x > z.x + z.w + 8 || o.x + o.w < z.x - 8 || o.y > z.y + z.h + 8 || o.y + o.h < z.y - 8);
+        alle.unshift(z);
+      }
       dinge = alle;
-      ziel = { k, m, o: z, t: 0, ergebnis: null, ansageAb: W.ansageVor, zeit: lerp(W.zeit, k, N), voll: lerp(W.voll, k, N), textAb: null };
+      ziel = { k, m, o: z, t: 0, ergebnis: null, ansageAb: W.ansageVor, zeit: lerp(W.zeit, k, N), voll: lerp(W.voll, k, N), textAb: null,
+        t0: null, einsatz: 0, tonLen: 0, textNach: 0, gewartet: 0 };
       api.ziel(k + 1, null);
       G.ansage.verbergen();
       phase = 'zeigen';
     }
-    function ansagen() {
+    // Ansage: false = Geräusch kann noch nicht erklingen (wartet, höchstens WARTEN)
+    function ansagen(d) {
       const m = ziel.m, k = TON.klang({ name: m.geraeusch || m.name, ton: m.ton, laenge: 1.8 });
       const mitTon = TON.an() && !!m.geraeusch;
-      if (mitTon) tonGriff = TON.spielen(k, 0.6, { hoechstens: 2.4 });
-      // Text: sofort, außer mit Ton und echter Aufnahme (dann nach textNach)
-      ziel.textAb = mitTon && k.echt ? ziel.t + W.textNach : ziel.t;
-      ziel.tonBis = mitTon ? ziel.t + Math.min(2.4, k.dauer) : 0;
+      if (mitTon && !TON.bereit(k) && ziel.gewartet < WARTEN) { ziel.gewartet += d; return false; }
+      ziel.ansageAb = ziel.t;
+      if (mitTon) {
+        ziel.tonLen = Math.min((k.einsatz || 0) + 2.4, k.dauer);
+        tonGriff = TON.spielen(k, 0.6, { hoechstens: ziel.tonLen });
+        if (tonGriff.laeuft) { ziel.t0 = tonGriff.t0; ziel.einsatz = k.einsatz || 0; }
+      }
+      // Text: sofort, außer mit Ton und echter Aufnahme (dann textNach nach dem hörbaren Einsatz)
+      ziel.textNach = ziel.t0 != null && k.echt ? W.textNach : 0;
+      ziel.textAb = ziel.t + ziel.textNach;   // nur Anzeige für Testhilfen (gezählt wird mit seitAnsage)
       phase = 'suchen';
+      return true;
     }
+    // Sekunden seit die Ansage hörbar ist (mit Ton) bzw. seit der Ansage (ohne Ton)
+    function seitAnsage() {
+      if (ziel.t0 != null) return TON.hoerJetzt() - (ziel.t0 + ziel.einsatz);
+      return ziel.t - ziel.ansageAb;
+    }
+    function tonHoerbar() { if (ziel.t0 == null) return false; const r = TON.hoerJetzt() - ziel.t0; return r >= 0 && r < ziel.tonLen; }
     function ergebnis(art, o, x, y, untergruppe) {
       const e = { ziel: ziel.k + 1, art, d: 0, name: ziel.m.name };
-      if (art === 'treffer') { const rt = ziel.t - ziel.ansageAb; e.reaktion = rt; e.punkte = G.punkteNachZeit(rt, ziel.voll, ziel.zeit, R); }
+      if (art === 'treffer') { const rt = Math.max(0, seitAnsage()); e.reaktion = rt; e.punkte = G.punkteNachZeit(rt, ziel.voll, ziel.zeit, R); }
       ziel.ergebnis = e;
       const q = o || ziel.o, cx = q.x + q.w / 2, cy = q.y + q.h / 2;
       const filter = art !== 'falsch' ? null : untergruppe === 'brille' ? (w => /brille/i.test(w)) : (w => !/brille/i.test(w));
@@ -166,7 +194,7 @@
         this.vorladen();
         reihe = mischen(pool()); zuletzt = [];
         dinge = []; fx.leeren(); aus = false; ziel = null;
-        nr = Math.max(0, (abZiel || 1) - 1); phase = 'start'; uhr = 0.5;
+        nr = Math.max(0, (abZiel || 1) - 1); phase = 'start'; uhr = 0.5; uhrTon.zurueck();
         brilleSetzen(W.brilleStart || 'nah', true); mix = brille === 'fern' ? 1 : 0;
         $b.hidden = false;
         hgBauen();
@@ -180,12 +208,14 @@
         if (aus || api.abgebrochen()) { if (!aus && tonGriff) { tonGriff.aus(0.1); tonGriff = null; } aus = true; return; }
         if (phase === 'start') { uhr -= dt; if (uhr <= 0) naechstes(); return; }
         if (!ziel) return;
-        ziel.t += dt;
-        if (phase === 'zeigen' && ziel.t >= ziel.ansageAb) ansagen();
+        const d = uhrTon.schritt(dt / tempo) * tempo;   // Spieluhr folgt der Audiouhr, solange Ton läuft
+        ziel.t += d;
+        if (phase === 'zeigen' && ziel.t >= ziel.ansageAb) ansagen(d);
         if (phase === 'suchen') {
-          if (ziel.textAb != null && ziel.t >= ziel.textAb && document.getElementById('fkAnsage').hidden) G.ansage.zeigen({ bild: G.LAUTSPRECHER, text: ziel.m.name, klein: true, hoert: ziel.t < ziel.tonBis });
-          if (!document.getElementById('fkAnsage').hidden) G.ansage.hoert(ziel.t < ziel.tonBis);
-          if (ziel.t - ziel.ansageAb >= ziel.zeit) ergebnis('verpasst', ziel.o);
+          const seit = seitAnsage();
+          if (seit >= ziel.textNach && document.getElementById('fkAnsage').hidden) G.ansage.zeigen({ bild: G.LAUTSPRECHER, text: ziel.m.name, klein: true, hoert: tonHoerbar() });
+          if (!document.getElementById('fkAnsage').hidden) G.ansage.hoert(tonHoerbar());
+          if (seit >= ziel.zeit) ergebnis('verpasst', ziel.o);
         }
         if (phase === 'pause') {
           uhr -= dt;
@@ -196,7 +226,9 @@
       tipp(x, y) {
         if (!ziel || aus || (phase !== 'zeigen' && phase !== 'suchen')) return false;
         // oberstes Ding unter dem Finger (nahe Dinge liegen vorn)
-        const treffer = dinge.filter(o => !o.weg && x >= o.x - 8 && x <= o.x + o.w + 8 && y >= o.y - 8 && y <= o.y + o.h + 8)
+        // Treffer hat Vorrang (MZ, 26.10.2026): liegt der Finger auf dem Ziel, zählt das Ziel – auch wenn ein anderes Ding daneben liegt
+        const unter = dinge.filter(o => !o.weg && x >= o.x - 8 && x <= o.x + o.w + 8 && y >= o.y - 8 && y <= o.y + o.h + 8);
+        const treffer = unter.find(o => o.ziel) || unter
           .sort((a, b) => (a.fern === b.fern ? Math.hypot(x - a.x - a.w / 2, y - a.y - a.h / 2) - Math.hypot(x - b.x - b.w / 2, y - b.y - b.h / 2) : a.fern ? 1 : -1))[0];
         if (!treffer) return false;
         if (phase === 'zeigen') return false;   // vor der Ansage (ca. 0,6s): Tippen zählt nicht (MZ, 26.10.2026, Spielertest)
@@ -211,7 +243,7 @@
         g.drawImage(bgNah, 0, 0, B, H);
         if (mix > 0.01) { g.save(); g.globalAlpha = mix; g.drawImage(bgFern, 0, 0, B, H); g.restore(); }
         // ferne Dinge zuerst, dann die nahen auf dem Tisch
-        dinge.slice().sort((a, b2) => (a.fern === b2.fern ? 0 : a.fern ? -1 : 1)).forEach(o => {
+        dinge.slice().sort((a, b2) => (a.ziel !== b2.ziel ? (a.ziel ? 1 : -1) : a.fern === b2.fern ? 0 : a.fern ? -1 : 1)).forEach(o => {   // Ziel obenauf
           const rein = Math.min(1, o.t / 0.3), raus = o.weg ? Math.max(0, 1 - o.weg / 0.4) : 1;
           if (rein * raus <= 0) return;
           const u = o.fern ? 1 - mix : mix, pad = o.bild.pad;
@@ -222,7 +254,11 @@
       zustand() {
         if (!ziel) return { nr: nr + 1, phase, brille };
         const o = ziel.o;
+        const jetzt = performance.now();
+        // hoerbarPerf = performance.now()-Zeit, zu der die Ansage am Ohr hörbar wird (für Bots); seit = gezählte Reaktionszeit
+        const hoerbarPerf = phase === 'zeigen' ? null : ziel.t0 != null ? jetzt + (ziel.t0 + ziel.einsatz - TON.hoerJetzt()) * 1000 : jetzt + (ziel.ansageAb - ziel.t) * 1000 / tempo;
         return { nr: ziel.k + 1, name: ziel.m.name, entfernung: ziel.m.entfernung, phase, t: ziel.t, ansageAb: ziel.ansageAb, zeit: ziel.zeit, brille,
+          mitTon: ziel.t0 != null, einsatz: ziel.einsatz, gewartet: ziel.gewartet, hoerbarPerf, seit: phase === 'zeigen' ? null : seitAnsage(), latenz: TON.latenz(),
           x: o.x + o.w / 2, y: o.y + o.h / 2, w: o.w, h: o.h, textAb: ziel.textAb,
           andere: dinge.filter(q => !q.ziel).map(q => ({ name: q.m.name, fern: q.fern, x: q.x + q.w / 2, y: q.y + q.h / 2 })),
           schalter: Array.from($b.querySelectorAll('button')).map(k => { const r = k.getBoundingClientRect(); return { b: k.dataset.b, x: r.x + r.width / 2, y: r.y + r.height / 2 }; }) };

@@ -143,6 +143,13 @@ window.FOKUS = {
     groesse: [1.0, 0.75],
     voll: 0.35,                  // Reaktion ab Klarwerden: bis hier 100 Punkte, bis Ende des Klarblicks linear auf 50
     pause: 0.8,
+    // Größe je Motiv (Name wie im Entwurf) zusätzlich zur Größenklasse – damit kleine Dinge auch klein wirken (MZ, 26.10.2026:
+    // „Münze deutlich kleiner“). 1 = wie die Klasse. Trefferfläche bleibt mindestens 40 × 40 px.
+    faktor: {
+      'Münze': 0.45, 'Kaulquappe': 0.6, 'Wasserschnecke': 0.6, 'Schlüsselbund': 0.7, 'Sonnenbrille': 0.6, 'Stichling': 0.7,
+      'Moderlieschen': 0.7, 'Bitterling': 0.75, 'Teichmuschel': 0.8, 'Molch': 0.8, 'Taschenlampe': 0.85, 'Badeschuh': 0.85,
+      'Flusskrebs': 0.85, 'Goldfisch': 0.85, 'Fußball': 0.75, 'Flaschenpost': 0.8,
+    },
   },
   // Level 4 „Rauschen“: Zielgeräusch im gleichmäßigen Rauschen erkennen
   rauschen: {

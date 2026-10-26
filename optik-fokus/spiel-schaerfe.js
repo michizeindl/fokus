@@ -104,7 +104,7 @@
       if (o.m.bewegung === 'hüpft' || art === 'huepfer') dy = -Math.abs(Math.sin(o.t * 4 + o.wob)) * o.bild.h * 0.18;
       else if (o.m.bewegung === 'fliegt' || o.m.bewegung === 'schwebt') dy = Math.sin(o.t * 1.6 + o.wob) * o.bild.h * 0.08;
       else dy = -Math.abs(Math.sin(o.t * 6 + o.wob)) * o.bild.h * 0.025;
-      return { x, y: o.y + dy, w: o.bild.w + o.bild.pad * 2, h: o.bild.h + o.bild.pad * 2, pad: o.bild.pad };
+      return { x, y: o.y + dy + (o.aus || 0), w: o.bild.w + o.bild.pad * 2, h: o.bild.h + o.bild.pad * 2, pad: o.bild.pad };   // aus = Ausweichen
     }
     // Kästchen ohne Rand (das, was man sieht), etwas großzügiger zum Antippen
     function kasten(o, extra) {
@@ -146,6 +146,12 @@
         if (!ziel) { warte -= dt; if (warte <= 0) naechstes(); return; }
         ziel.t += dt;
         ablenker.forEach(a => { a.t += dt; });
+        // Ablenker (ab Ziel 5) weichen dem Ziel aus, damit es nie verdeckt ist (MZ, 26.10.2026) – erst wenn sie im Bild sind
+        if (!ziel.ergebnis && window.FOKUS_GEMEIN) {
+          const vz = (ziel.x1 - ziel.x0) / ziel.dauer;
+          window.FOKUS_GEMEIN.ausweichen(kasten(ziel, 4), ablenker.filter(a => a.t > -0.6).map(a => ({ o: a, k: kasten(a), vx: (a.x1 - a.x0) / a.dauer - vz })),
+            dt, api.oben(), H - 8, 12);
+        }
         if (!ziel.ergebnis && ziel.t >= ziel.dauer) ergebnis('verpasst');
         if (ziel.ergebnis) {
           ziel.weg += dt;
@@ -167,8 +173,8 @@
         if (hg) g.drawImage(hg, 0, 0, B, H);
         if (!laeuft) return;
         // Ablenker hinter dem Ziel, wenn sie weiter weg sind (kleiner)
-        const alle = ablenker.filter(a => a.t > 0).map(a => ({ o: a, ab: true })).concat(ziel ? [{ o: ziel }] : []);
-        alle.sort((p, q) => p.o.bild.h - q.o.bild.h);
+        // Ablenker nach Größe, das Ziel immer obenauf (MZ, 26.10.2026)
+        const alle = ablenker.filter(a => a.t > 0).map(a => ({ o: a, ab: true })).sort((p, q) => p.o.bild.h - q.o.bild.h).concat(ziel ? [{ o: ziel }] : []);
         alle.forEach(({ o, ab }) => {
           const l = lage(o);
           let u, alpha = 1;
@@ -216,13 +222,26 @@
           g.restore();
         });
       },
+      // Testhilfe (nur zur Laufzeit, FOKUS_TEST.ueberdecken()): ein Ablenker zieht genau mit dem Ziel und deckt dessen untere
+      // Hälfte ab, ohne auszuweichen
+      testUeberdecken() {
+        if (!ziel) return null;
+        const a = bereiten(pool.find(p => p !== ziel.m) || ziel.m, ziel.k, true);
+        Object.assign(a, { test: true, rechts: ziel.rechts, x0: ziel.x0, x1: ziel.x1, dauer: ziel.dauer, t: ziel.t, wob: ziel.wob,
+          P: ziel.P, min: Math.max(0.45, ziel.tol * 3), y: ziel.y + ziel.bild.h * 0.45 });
+        ablenker.push(a);
+        const k = kasten(a);
+        return { x: k.x + k.w / 2, y: k.y + k.h / 2, w: k.w, h: k.h };
+      },
       // Testhilfe: Lage und Zeiten des aktuellen Ziels
       zustand() {
         if (!ziel) return { ziel: null, nr: nr + 1, warte };
         const k = kasten(ziel);
         return { nr: ziel.k + 1, name: ziel.m.name, t: ziel.t, tp: ziel.tp, halb: ziel.halb, P: ziel.P, dauer: ziel.dauer,
           bisScharf: ziel.tp - ziel.t, u: unschaerfe(ziel.t - ziel.tp, ziel.P, ziel.rest), erledigt: !!ziel.ergebnis,
-          x: k.x + k.w / 2, y: k.y + k.h / 2, w: k.w, h: k.h, ablenker: ablenker.filter(a => a.t > 0).map(a => { const q = kasten(a); return { x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h }; }) };
+          x: k.x + k.w / 2, y: k.y + k.h / 2, w: k.w, h: k.h,
+          verdeckt: window.FOKUS_GEMEIN ? +window.FOKUS_GEMEIN.verdeckt(k, ablenker.filter(a => a.t > 0).map(a => kasten(a))).toFixed(3) : 0,
+          ablenker: ablenker.filter(a => a.t > 0).map(a => { const q = kasten(a); return { x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h }; }) };
       },
       unschaerfe, halbesFenster,
     };

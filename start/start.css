@@ -3,7 +3,7 @@
 * { box-sizing: border-box; }
 html { height: 100%; background: var(--haupt-dunkel, #0a5a5d); }
 body {
-  margin: 0; min-height: 100%; min-height: 100dvh; display: flex; flex-direction: column;
+  margin: 0; min-height: 100%; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
   font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #fff;
   background: radial-gradient(circle at 50% 22%, var(--haupt-hell, #18989c), var(--haupt, #0F7C80) 45%, var(--haupt-dunkel, #0a5a5d)) fixed;
   -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
@@ -28,13 +28,24 @@ body.weg { opacity: 0; }
 .logo { height: 34px; display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
 .logo svg, .logo img { height: 100%; width: auto; max-width: 52vw; display: block; overflow: visible; }
 
-/* ---------- Inhalt ---------- */
-.inhalt { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 18px; }
-.links { display: flex; flex-direction: column; align-items: center; }
+/* ---------- Inhalt ----------
+   Alles passt ohne Scrollen in die sichtbare Höhe (MZ, 26.10.2026: „ich will nicht scrollen, nur um den Footer zu sehen“):
+   Kopf, Level-Knöpfe und Footer haben ihre Höhe (Knöpfe nach dvh, 44–62 px), die Linse bekommt den Rest. Dafür ist .links
+   ein Größen-Container (container-type: size) und die Linse misst sich an 100cqh (Höhe des freien Platzes). Ohne
+   Container-Abfragen (alte Browser): Linse nach vh wie bisher. */
+.inhalt { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; padding: 0 18px; min-height: 0;
+  --kh: clamp(44px, 7vh, 62px); --kg: clamp(6px, 1.2vh, 13px); }   /* Knopf-Höhe und -Abstand */
+@supports (height: 1dvh) { .inhalt { --kh: clamp(44px, 7dvh, 62px); --kg: clamp(6px, 1.2dvh, 13px); } }
+.links { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
 .linse {
-  --linse: min(60vw, 31vh, 270px);
-  width: var(--linse); height: var(--linse); position: relative; margin-top: clamp(0px, 1.5vh, 22px);
+  --linse: min(58vw, 24vh, 270px);
+  width: var(--linse); height: var(--linse); position: relative; flex: none;
   border-radius: 50%; box-shadow: 0 12px 34px rgba(0,0,0,.35);
+}
+@supports (container-type: size) {
+  .links { flex: 1 1 0; min-height: 0; container-type: size; }
+  /* freier Platz minus Gesamt-Bestwert (Zeile + Abstand) und etwas Luft oben */
+  .linse { --linse: max(96px, min(58vw, 300px, calc(100cqh - 60px))); }
 }
 .linse .fassung { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .linse .skala { stroke: rgba(255,255,255,.82); stroke-width: 3; stroke-linecap: round; transform-origin: 256px 256px; animation: skalaAtmen 9s ease-in-out infinite; }
@@ -60,13 +71,14 @@ body.weg { opacity: 0; }
 }
 .linse .name { position: relative; text-shadow: 0 1px 6px rgba(0,0,0,.22); }
 .linse .geist { position: absolute; opacity: .3; filter: blur(4px); transform: translate(5%, -3%); transition: opacity .6s; }
-.gesamt { margin: clamp(10px, 1.8vh, 20px) 0 0; font-size: 13.5px; color: rgba(255,255,255,.88); text-align: center; }
+.gesamt { margin: clamp(8px, 1.6vh, 18px) 0 0; font-size: 13.5px; line-height: 1.4; color: rgba(255,255,255,.88); text-align: center; flex: none; }
 .gesamt b { font-weight: 700; color: #fff; }
 
 /* ---------- Level-Knöpfe ---------- */
-.stufen { width: 100%; max-width: 410px; display: flex; flex-direction: column; gap: clamp(8px, 1.3vh, 13px); margin: clamp(12px, 2.4vh, 26px) 0 8px; }
+.stufen { width: 100%; max-width: 410px; display: flex; flex-direction: column; gap: var(--kg); margin: clamp(10px, 2.2vh, 26px) 0 clamp(6px, 1.2vh, 12px); flex: none; }
 .stufe {
-  display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 7px 16px 7px 7px;
+  display: flex; align-items: center; gap: 12px; height: var(--kh); padding: 0 16px 0 calc((var(--kh) - var(--kp)) / 2);
+  --kp: min(44px, calc(var(--kh) - 10px));   /* Nummernkreis */
   background: #fff; border-radius: 40px; box-shadow: 0 3px 12px rgba(0,0,0,.2);
   color: var(--haupt-dunkel); text-decoration: none; cursor: pointer;
   transition: transform .2s ease, box-shadow .2s ease, opacity .3s;
@@ -75,8 +87,8 @@ body.weg { opacity: 0; }
 .stufe:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(0,0,0,.25); }
 .stufe:active, .stufe.gedrueckt { transform: scale(.97); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .stufe .punkt {
-  width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--haupt); color: var(--haupt-text, #fff);
-  font-weight: 800; font-size: 20px; display: grid; place-items: center; transition: transform .25s;
+  width: var(--kp); height: var(--kp); flex: none; border-radius: 50%; background: var(--haupt); color: var(--haupt-text, #fff);
+  font-weight: 800; font-size: calc(var(--kp) * .45); display: grid; place-items: center; transition: transform .25s;
 }
 .stufe:hover .punkt { transform: rotate(-8deg) scale(1.05); }
 .stufe .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -92,11 +104,13 @@ body.weg { opacity: 0; }
 /* ---------- Footer ---------- */
 .fuss {
   font-size: 10.5px; line-height: 1.5; text-align: center; color: rgba(255,255,255,.82);
-  padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: 10px max(12px, env(safe-area-inset-right)) calc(max(12px, env(safe-area-inset-bottom)) + 24px) max(12px, env(safe-area-inset-left));   /* unten +24px (MZ, 26.10.2026) */
   animation: einBlenden .6s ease .5s both;
 }
+/* feine weiße Linie über dem Adressblock (MZ, 26.10.2026) */
+.fuss::before { content: ""; display: block; width: min(340px, 82%); height: 1px; margin: 0 auto 8px; background: rgba(255,255,255,.55); }
 .fuss p { margin: 0; }
-.fuss u { color: #fff; text-underline-offset: 2px; cursor: default; }
+.fuss u { color: inherit; font-weight: inherit; text-underline-offset: 2px; cursor: default; }   /* nicht fett, gleiche Farbe wie der übrige Footer (MZ, 26.10.2026) */
 
 /* ---------- Erscheinen (ohne Intro) ---------- */
 @keyframes einGleiten { from { opacity: 0; transform: translateY(14px); } }
@@ -124,49 +138,48 @@ html.intro .kopf { position: relative; z-index: 60; pointer-events: none; }
 .buehne .flaeche { position: absolute; inset: 0; background: var(--haupt); }
 .buehne svg { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; will-change: transform, opacity, filter; }
 
-/* ---------- Hohe Bildschirme: bewusst luftig ---------- */
-@media (min-height: 760px) and (orientation: portrait) {
-  .linse { --linse: min(64vw, 32vh, 300px); margin-top: 3vh; }
-  .stufe { min-height: 62px; }
-}
 /* ---------- Schmale Handys ---------- */
 @media (max-width: 350px) {
   .inhalt { padding: 0 12px; }
-  .stufe { gap: 9px; padding-right: 12px; min-height: 52px; }
-  .stufe .punkt { width: 38px; height: 38px; font-size: 17px; }
+  .stufe { gap: 9px; padding-right: 12px; }
   .stufe .lname { font-size: 15.5px; }
   .stufe .lbest { font-size: 10px; }
   .logo { height: 28px; }
   .fuss { font-size: 9.5px; padding-top: 6px; }
 }
-@media (max-height: 660px) and (orientation: portrait) {
-  .stufen { margin-top: 10px; gap: 7px; }
-  .linse { --linse: min(58vw, 29vh, 250px); }
+/* ---------- Niedrige Hochformate: Kopf und Schrift etwas kleiner ---------- */
+@media (max-height: 700px) and (orientation: portrait) {
   .kopf { height: calc(52px + env(safe-area-inset-top)); }
-  .stufe { min-height: 50px; padding-top: 5px; padding-bottom: 5px; }
-  .stufe .punkt { width: 38px; height: 38px; font-size: 17px; }
   .gesamt { font-size: 12.5px; }
+  .stufe .lname { font-size: 16px; }
 }
-/* ---------- Querformat (Handy quer, flache Einbettung): Linse links, Level rechts ---------- */
+/* ---------- Querformat (Handy quer, flache Einbettung): Linse links, Level rechts ----------
+   Knopf-Höhe aus der sichtbaren Höhe: Höhe − Kopf − Footer − 4 Abstände, geteilt durch 5 (höchstens 50 px). Unter ca. 360 px
+   Höhe (z. B. 568×320) passen fünf Knöpfe à 44 px nicht mehr über den Footer – dort bis 34 px. */
 @media (orientation: landscape) and (max-height: 620px) {
   .kopf { height: calc(50px + env(safe-area-inset-top)); }
   .logo { height: 28px; }
-  .inhalt { flex-direction: row; justify-content: center; align-items: center; gap: clamp(20px, 5vw, 60px); padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)); }
-  .linse { --linse: min(46vh, 30vw, 250px); margin-top: 0; }
+  .inhalt { flex-direction: row; justify-content: center; align-items: center; gap: clamp(20px, 5vw, 60px); padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
+    --kg: clamp(5px, 1.4vh, 10px); --kh: clamp(34px, calc((100vh - 140px - 4 * var(--kg)) / 5), 50px); }
+  @supports (height: 1dvh) { .inhalt { --kg: clamp(5px, 1.4dvh, 10px); --kh: clamp(34px, calc((100dvh - 140px - 4 * var(--kg)) / 5), 50px); } }
+  .links { flex: none; width: auto; max-width: 42%; container-type: normal; }
+  .linse { --linse: min(46vh, 30vw, 250px); }
+  @supports (height: 1dvh) { .linse { --linse: min(46dvh, 30vw, 250px); } }
   .gesamt { font-size: 12px; max-width: 220px; }
-  .stufen { margin: 0; max-width: 360px; gap: clamp(5px, 1.4vh, 10px); }
-  .stufe { min-height: 0; padding: 4px 14px 4px 5px; }
-  .stufe .punkt { width: clamp(30px, 8.5vh, 40px); height: clamp(30px, 8.5vh, 40px); font-size: 15px; }
+  .stufen { margin: 0; max-width: 360px; flex: 1 1 0; min-width: 0; }   /* Knöpfe nehmen den Rest, Bestwert-Zeile bleibt neben der Linse */
+  .stufe { padding-right: 14px; --kp: min(40px, calc(var(--kh) - 8px)); }
   .stufe .lname { font-size: clamp(13.5px, 4vh, 16px); }
   .stufe .lbest { font-size: 10px; }
   .stufe .schaerfe i { height: 14px; }
-  .fuss { padding-top: 4px; padding-bottom: max(6px, env(safe-area-inset-bottom)); font-size: 9.5px; }
+  .fuss { padding-top: 4px; padding-bottom: calc(max(6px, env(safe-area-inset-bottom)) + 24px); font-size: 9.5px; }
 }
 @media (orientation: landscape) and (max-height: 380px) {
   .kopf { height: calc(42px + env(safe-area-inset-top)); }
   .ton { width: 32px; height: 32px; }
   .logo { height: 24px; }
   .fuss { line-height: 1.35; }
+  .inhalt { --kh: clamp(34px, calc((100vh - 128px - 4 * var(--kg)) / 5), 50px); }
+  @supports (height: 1dvh) { .inhalt { --kh: clamp(34px, calc((100dvh - 128px - 4 * var(--kg)) / 5), 50px); } }
 }
 
 /* ---------- Bewegung reduzieren ---------- */
