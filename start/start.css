@@ -1,0 +1,177 @@
+/* Startseite „Fokus“ – Layout C „Fokusring“ (MZ, 26.10.2026). Farben kommen aus kunde.js (start/fokus-basis.js setzt
+   --haupt, --haupt-hell, --haupt-dunkel, --haupt-tief, --haupt-blass). Klassen .z und .s nicht benutzen (Logo-SVG). */
+* { box-sizing: border-box; }
+html { height: 100%; background: var(--haupt-dunkel, #0a5a5d); }
+body {
+  margin: 0; min-height: 100%; min-height: 100dvh; display: flex; flex-direction: column;
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #fff;
+  background: radial-gradient(circle at 50% 22%, var(--haupt-hell, #18989c), var(--haupt, #0F7C80) 45%, var(--haupt-dunkel, #0a5a5d)) fixed;
+  -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+  transition: opacity .22s ease;
+}
+body.weg { opacity: 0; }
+
+/* ---------- Kopf: Ton links, Logo rechts ---------- */
+.kopf {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  height: calc(60px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+}
+.ton {
+  width: 38px; height: 38px; flex: none; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  background: rgba(255,255,255,.18); color: #fff; display: grid; place-items: center;
+  transition: background .2s, transform .15s;
+}
+.ton:hover { background: rgba(255,255,255,.28); }
+.ton:active { transform: scale(.92); }
+.ton:focus-visible, .stufe:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.ton svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.logo { height: 34px; display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.logo svg, .logo img { height: 100%; width: auto; max-width: 52vw; display: block; overflow: visible; }
+
+/* ---------- Inhalt ---------- */
+.inhalt { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 18px; }
+.links { display: flex; flex-direction: column; align-items: center; }
+.linse {
+  --linse: min(60vw, 31vh, 270px);
+  width: var(--linse); height: var(--linse); position: relative; margin-top: clamp(0px, 1.5vh, 22px);
+  border-radius: 50%; box-shadow: 0 12px 34px rgba(0,0,0,.35);
+}
+.linse .fassung { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.linse .skala { stroke: rgba(255,255,255,.82); stroke-width: 3; stroke-linecap: round; transform-origin: 256px 256px; animation: skalaAtmen 9s ease-in-out infinite; }
+.linse .skala .lang { stroke-width: 4.5; stroke: #fff; }
+@keyframes skalaAtmen { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+.linse .glas {
+  position: absolute; inset: 15.4%; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 35% 30%, #c4ecec, color-mix(in srgb, var(--haupt) 55%, #9be0e0) 42%, var(--haupt-tief, #0b5d60) 82%);
+  box-shadow: inset 0 0 calc(var(--linse) * .09) rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.linse .glas::after {   /* Lichtreflex auf dem Glas */
+  content: ""; position: absolute; left: 16%; top: 10%; width: 46%; height: 30%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.45), rgba(255,255,255,0) 70%); transform: rotate(-24deg);
+}
+.linse .name, .linse .geist {
+  /* „FOKUS“ in Versalien, weit gesperrt, leichter (MZ, 26.10.2026, Variante A der Skizze Vorschau/fokus-typo, ohne Skala):
+     Poppins SemiBold, Laufweite .24em; padding-left gleicht den Laufweiten-Überhang rechts aus (optisch mittig).
+     Größe wie in der Skizze im Verhältnis zum Glas (38px auf 264px Glas → .1 der Linse bei Glas = 69 % der Linse).
+     Im HTML steht „Fokus“ (Vorlesen), die Versalien kommen aus text-transform. */
+  margin: 0; font-weight: 600; font-size: calc(var(--linse) * .1); line-height: 1; letter-spacing: .24em; padding-left: .24em;
+  text-transform: uppercase; color: #fff;
+}
+.linse .name { position: relative; text-shadow: 0 1px 6px rgba(0,0,0,.22); }
+.linse .geist { position: absolute; opacity: .3; filter: blur(4px); transform: translate(5%, -3%); transition: opacity .6s; }
+.gesamt { margin: clamp(10px, 1.8vh, 20px) 0 0; font-size: 13.5px; color: rgba(255,255,255,.88); text-align: center; }
+.gesamt b { font-weight: 700; color: #fff; }
+
+/* ---------- Level-Knöpfe ---------- */
+.stufen { width: 100%; max-width: 410px; display: flex; flex-direction: column; gap: clamp(8px, 1.3vh, 13px); margin: clamp(12px, 2.4vh, 26px) 0 8px; }
+.stufe {
+  display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 7px 16px 7px 7px;
+  background: #fff; border-radius: 40px; box-shadow: 0 3px 12px rgba(0,0,0,.2);
+  color: var(--haupt-dunkel); text-decoration: none; cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, opacity .3s;
+  animation: einGleiten .5s ease both; animation-delay: calc(.12s + var(--i, 0) * .07s);
+}
+.stufe:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(0,0,0,.25); }
+.stufe:active, .stufe.gedrueckt { transform: scale(.97); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.stufe .punkt {
+  width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--haupt); color: var(--haupt-text, #fff);
+  font-weight: 800; font-size: 20px; display: grid; place-items: center; transition: transform .25s;
+}
+.stufe:hover .punkt { transform: rotate(-8deg) scale(1.05); }
+.stufe .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.stufe .lname { font-weight: 700; font-size: 17px; line-height: 1.15; }
+.stufe .lbest { font-size: 11px; color: #5a6b6c; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stufe .schaerfe { display: flex; gap: 3px; flex: none; }
+.stufe .schaerfe i { width: 5px; height: 17px; border-radius: 2px; background: var(--haupt-blass, #cfe3e3); transition: background .25s; }
+.stufe .schaerfe i.an { background: var(--haupt); }
+.stufe.aus { opacity: .42; filter: grayscale(1); cursor: default; box-shadow: none; }
+.stufe.aus:hover, .stufe.aus:active { transform: none; box-shadow: none; }
+.stufe.aus:hover .punkt { transform: none; }
+
+/* ---------- Footer ---------- */
+.fuss {
+  font-size: 10.5px; line-height: 1.5; text-align: center; color: rgba(255,255,255,.82);
+  padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  animation: einBlenden .6s ease .5s both;
+}
+.fuss p { margin: 0; }
+.fuss u { color: #fff; text-underline-offset: 2px; cursor: default; }
+
+/* ---------- Erscheinen (ohne Intro) ---------- */
+@keyframes einGleiten { from { opacity: 0; transform: translateY(14px); } }
+@keyframes einBlenden { from { opacity: 0; } }
+.kopf { animation: einBlenden .5s ease both; }
+.linse { animation: linseRein .7s cubic-bezier(.2,.8,.3,1.1) both; }
+@keyframes linseRein { from { opacity: 0; transform: scale(.86) rotate(-12deg); } }
+.gesamt { animation: einBlenden .5s ease .2s both; }
+.linse .name { animation: scharfStellen .9s ease .15s both; }
+@keyframes scharfStellen { from { filter: blur(4.5px); opacity: .4; } }   /* Unschärfe passend zur kleineren, gesperrten Schrift */
+
+/* Während des Intros: alles, was das Intro zeigt, zunächst unsichtbar (nur Deckkraft, die Lage bleibt zum Messen) */
+html.intro .kopf, html.intro .linse, html.intro .gesamt, html.intro .stufe, html.intro .fuss { animation: none; opacity: 0; }
+html.intro .linse .name { animation: none; }
+html.intro .logo [data-teil], html.intro #zeichen, html.intro #schriftzug { opacity: 0; }
+/* Kopfzeile (Logo) liegt im Intro über der Bühne: die Brille setzt sich bei 1,5s ins Logo und bleibt sichtbar, während die
+   Fläche noch deckt (vorher verschwanden Zeichen und Schriftzug bis ca. 1,8s darunter). Tippen geht weiter an die Bühne. */
+html.intro .kopf { position: relative; z-index: 60; pointer-events: none; }
+
+/* nach dem Intro schon Gezeigtes nicht noch einmal hereinfliegen lassen */
+[data-gezeigt] { animation: none !important; }
+
+/* Intro-Bühne (start/intro.js) */
+.buehne { position: fixed; inset: 0; z-index: 50; overflow: hidden; cursor: pointer; touch-action: manipulation; }
+.buehne .flaeche { position: absolute; inset: 0; background: var(--haupt); }
+.buehne svg { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; will-change: transform, opacity, filter; }
+
+/* ---------- Hohe Bildschirme: bewusst luftig ---------- */
+@media (min-height: 760px) and (orientation: portrait) {
+  .linse { --linse: min(64vw, 32vh, 300px); margin-top: 3vh; }
+  .stufe { min-height: 62px; }
+}
+/* ---------- Schmale Handys ---------- */
+@media (max-width: 350px) {
+  .inhalt { padding: 0 12px; }
+  .stufe { gap: 9px; padding-right: 12px; min-height: 52px; }
+  .stufe .punkt { width: 38px; height: 38px; font-size: 17px; }
+  .stufe .lname { font-size: 15.5px; }
+  .stufe .lbest { font-size: 10px; }
+  .logo { height: 28px; }
+  .fuss { font-size: 9.5px; padding-top: 6px; }
+}
+@media (max-height: 660px) and (orientation: portrait) {
+  .stufen { margin-top: 10px; gap: 7px; }
+  .linse { --linse: min(58vw, 29vh, 250px); }
+  .kopf { height: calc(52px + env(safe-area-inset-top)); }
+  .stufe { min-height: 50px; padding-top: 5px; padding-bottom: 5px; }
+  .stufe .punkt { width: 38px; height: 38px; font-size: 17px; }
+  .gesamt { font-size: 12.5px; }
+}
+/* ---------- Querformat (Handy quer, flache Einbettung): Linse links, Level rechts ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .kopf { height: calc(50px + env(safe-area-inset-top)); }
+  .logo { height: 28px; }
+  .inhalt { flex-direction: row; justify-content: center; align-items: center; gap: clamp(20px, 5vw, 60px); padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)); }
+  .linse { --linse: min(46vh, 30vw, 250px); margin-top: 0; }
+  .gesamt { font-size: 12px; max-width: 220px; }
+  .stufen { margin: 0; max-width: 360px; gap: clamp(5px, 1.4vh, 10px); }
+  .stufe { min-height: 0; padding: 4px 14px 4px 5px; }
+  .stufe .punkt { width: clamp(30px, 8.5vh, 40px); height: clamp(30px, 8.5vh, 40px); font-size: 15px; }
+  .stufe .lname { font-size: clamp(13.5px, 4vh, 16px); }
+  .stufe .lbest { font-size: 10px; }
+  .stufe .schaerfe i { height: 14px; }
+  .fuss { padding-top: 4px; padding-bottom: max(6px, env(safe-area-inset-bottom)); font-size: 9.5px; }
+}
+@media (orientation: landscape) and (max-height: 380px) {
+  .kopf { height: calc(42px + env(safe-area-inset-top)); }
+  .ton { width: 32px; height: 32px; }
+  .logo { height: 24px; }
+  .fuss { line-height: 1.35; }
+}
+
+/* ---------- Bewegung reduzieren ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01s !important; animation-delay: 0s !important; transition-duration: .01s !important; }
+  .linse .skala { animation: none; }
+}
+html.ruhig *, html.ruhig *::before, html.ruhig *::after { animation-duration: .01s !important; animation-delay: 0s !important; transition-duration: .01s !important; }

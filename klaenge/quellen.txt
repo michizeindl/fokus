@@ -1,0 +1,6 @@
+Quellen der Klänge – Sammlung „Fokus“ (erzeugt von Material/Skripte/klaenge-bauen.py aus Material/Klaenge-Einbauliste.md)
+Keine KI-erzeugten Klänge (MZ, 26.10.2026). Pixabay Content License: kommerziell, ohne Namensnennung. Sonniss GDC: kommerziell,
+ohne Namensnennung, Weitergabe der Klänge als Klänge und KI-Training verboten. Grundrauschen Level 4 wird im Browser erzeugt.
+
+Musik Acoustic (klaenge/musik.mp3): Acoustic – PaulYudin – https://pixabay.com/music/indie-pop-acoustic-153886/ – Pixabay Content License – 26.10.2026
+(alle weiteren Klänge: optik-fokus/klaenge/quellen.txt)

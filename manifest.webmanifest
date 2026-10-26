@@ -1,0 +1,19 @@
+{
+  "id": "fokus-app",
+  "name": "Fokus",
+  "short_name": "Fokus",
+  "description": "Mini-Game „Fokus“: im richtigen Moment scharf stellen – fünf Level zum Sehen und Hören.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F7C80",
+  "theme_color": "#0F7C80",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,310 @@
+/* „Fokus“ – eigene Optik der Sammlung (MZ, 26.10.2026): Start- und Endbild Stil 1 „Durch die Linse“, Level-Titel, Kopfzeile.
+   Die Start-/Endbilder des Rahmens bleiben unsichtbar; schirme.js baut die eigenen (Bestwert speichert weiter der Rahmen).
+   Farben aus kunde.js über start/fokus-basis.js (--haupt, --haupt-dunkel, --haupt-blass …). Klassen .z/.s nicht benutzen (Logo-SVG). */
+html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background: var(--haupt-dunkel, #0a5a5d); }
+#startSchirm, #endSchirm { display: none !important; }
+
+/* ---------- Kopfzeile im Spiel: Knöpfe des Rahmens links, Logo rechts, Stand darunter ---------- */
+/* Knöpfe oben links (Menü, Ton, Vollbild) auch über Start- und Endbild und dem Level-Titel – wie in den anderen Sammlungen
+   (Muster Rohrbruch: #anzeige über den eigenen Schirmen). MZ, 26.10.2026. Leiste selbst lässt Tippen durch (rahmen.css),
+   nur die Knöpfe sind antippbar; Logo oben rechts (z-index 40) liegt daneben und wird nicht verdeckt. */
+#anzeige { justify-content: flex-start; z-index: 45; padding-left: max(10px, env(safe-area-inset-left)); top: env(safe-area-inset-top); }
+#anzeige .links, #anzeige .rechts { display: none; }
+#anzeige button, #anzeige a { background: rgba(10, 50, 52, .42); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.fk-logo {
+  position: fixed; z-index: 40; top: calc(8px + env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+  height: 36px; padding: 6px 11px; border-radius: 11px; background: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.18);
+  display: flex; align-items: center; pointer-events: none;
+  animation: fkLogoRein .6s cubic-bezier(.2,.8,.3,1.2) both;
+}
+.fk-logo svg, .fk-logo img { height: 100%; width: auto; display: block; overflow: visible; }
+@keyframes fkLogoRein { from { opacity: 0; transform: translateY(-8px) scale(.92); } }
+#fkHud {
+  position: fixed; z-index: 5; left: 0; right: 0; top: calc(54px + env(safe-area-inset-top));
+  display: flex; justify-content: center; gap: 6px; pointer-events: none; padding: 0 8px;
+  transition: opacity .3s;
+}
+#fkHud[hidden] { display: flex; opacity: 0; }
+.fk-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 16px;
+  background: rgba(10, 50, 52, .5); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  color: #fff; font-size: 13.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.fk-chip b { font-weight: 800; }
+.fk-ziel { gap: 0; }
+.fk-ziel .fk-motiv { font-weight: 400; opacity: .85; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; }
+.fk-fehler i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); transition: background .25s, transform .25s; }
+.fk-fehler i.an { background: #ff8a65; border-color: #ff8a65; transform: scale(1.15); }
+.fk-chip.wackeln { animation: fkWackeln .4s ease; }
+@keyframes fkWackeln { 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+.fk-chip.plus { animation: fkPlus .4s ease; }
+@keyframes fkPlus { 40% { transform: scale(1.1); } }
+@media (min-width: 700px) {
+  #fkHud { top: calc(9px + env(safe-area-inset-top)); }
+}
+@media (max-width: 360px) {
+  .fk-chip { padding: 0 9px; font-size: 12.5px; gap: 4px; }
+  .fk-ziel .fk-motiv { display: none; }
+  .fk-logo { height: 32px; padding: 5px 9px; }
+}
+
+/* ---------- Start- und Endbild „Durch die Linse“ ---------- */
+.fk-schirm {
+  position: fixed; inset: 0; z-index: 30; overflow: hidden auto; color: #1d2b2c;
+  display: flex; flex-direction: column; align-items: center;
+  padding: calc(60px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+.fk-schirm[hidden] { display: none; }
+.fk-schirm .fk-hg {
+  position: fixed; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); z-index: -1;
+  filter: blur(9px) saturate(1.05); transform: scale(1.04);
+}
+.fk-schirm::before { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(255,255,255,.08), rgba(0,0,0,.12)); }
+.fk-buehne { width: 100%; max-width: 360px; margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vh, 30px); }
+.fk-linse {
+  --d: min(62vw, 33vh, 290px);
+  width: var(--d); height: var(--d); flex: none; position: relative; border-radius: 50%;
+  border: calc(var(--d) * .035) solid #fff; box-shadow: 0 12px 34px rgba(0,0,0,.3); overflow: hidden; background: #cfe3e3;
+  animation: fkLinseRein .7s cubic-bezier(.2,.8,.3,1.1) both;
+}
+.fk-linse canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fk-linse::after {   /* Glas-Reflex */
+  content: ""; position: absolute; left: 12%; top: 7%; width: 48%; height: 26%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.4), rgba(255,255,255,0) 70%); transform: rotate(-24deg);
+}
+@keyframes fkLinseRein { from { opacity: 0; transform: scale(.85); filter: blur(6px); } }
+.fk-karte {
+  width: 100%; background: #fff; border-radius: 18px; padding: clamp(16px, 2.6vh, 24px) 20px clamp(14px, 2.2vh, 20px); text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,.22);
+  animation: fkGleiten .55s ease .12s both;
+}
+.fk-karte > * { animation: fkGleiten .5s ease both; }
+.fk-karte > :nth-child(2) { animation-delay: .18s; } .fk-karte > :nth-child(3) { animation-delay: .24s; }
+.fk-karte > :nth-child(4) { animation-delay: .3s; } .fk-karte > :nth-child(5) { animation-delay: .36s; }
+.fk-karte > :nth-child(n+6) { animation-delay: .42s; }
+@keyframes fkGleiten { from { opacity: 0; transform: translateY(12px); } }
+.fk-dach { margin: 0 0 2px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #6b7c7d; }
+.fk-titel, .fk-bewertung { margin: 0 0 14px; font-weight: 800; line-height: 1.1; color: var(--haupt-dunkel); }
+.fk-titel { font-size: clamp(28px, 8.4vw, 36px); }
+.fk-bewertung { font-size: clamp(26px, 7.6vw, 34px); }
+.fk-anleitung { margin: 0 auto; max-width: 290px; font-size: 14px; line-height: 1.45; color: #2c3a3b; }
+.fk-regel { margin: 6px 0 0; font-size: 12.5px; color: #5a6b6c; }
+.fk-hinweis { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 0; padding: 5px 12px; border-radius: 14px; background: var(--haupt-zart, #eef6f6); color: var(--haupt-dunkel); font-size: 12.5px; font-weight: 600; }
+.fk-hinweis[hidden], .fk-regel[hidden] { display: none; }
+.fk-hinweis svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* Bestwert-Zeile (Startbild) und Bestwert-Zeile des Endbilds: einheitlich mehr Luft darüber (zum Text) und etwas darunter
+   (zu den Knöpfen) – MZ, 26.10.2026 */
+.fk-best, .fk-bestzeile { margin: 14px 0 16px; font-size: 12.5px; color: #5a6b6c; }
+.fk-best b { color: var(--haupt-dunkel); font-weight: 700; }
+.fk-knopf {
+  display: block; width: 100%; max-width: 260px; margin: 0 auto; padding: 13px 18px; border: 0; border-radius: 30px;
+  background: var(--haupt); color: var(--haupt-text, #fff); font: inherit; font-size: 16.5px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--haupt) 40%, transparent); transition: transform .15s, box-shadow .2s, background .2s;
+  text-decoration: none;
+}
+.fk-knopf:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--haupt) 88%, #000); }
+.fk-knopf:active { transform: scale(.97); }
+.fk-knopf:focus-visible, .fk-link:focus-visible { outline: 3px solid var(--haupt); outline-offset: 3px; }
+/* Nebenknöpfe (MZ, 26.10.2026: echte Knöpfe statt Textlinks): umrandet in Kundenfarbe auf Weiß, gleiche Höhe,
+   nebeneinander unter dem Hauptknopf („Nochmal“ + „Zum Menü“) bzw. allein in voller Breite („Zum Menü“ im Startbild) */
+.fk-links { display: flex; justify-content: center; gap: 10px; width: 100%; max-width: 260px; margin: 10px auto 0; }
+.fk-link {
+  flex: 1 1 0; min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 8px 12px;
+  border: 2px solid var(--haupt); border-radius: 30px; background: #fff; font: inherit; font-size: 15px; font-weight: 700; line-height: 1.15;
+  color: var(--haupt-dunkel); text-decoration: none; white-space: nowrap; cursor: pointer; transition: transform .15s, background .2s;
+}
+.fk-link:hover { background: var(--haupt-zart, #eef6f6); transform: translateY(-1px); }
+.fk-link:active { transform: scale(.97); }
+
+/* Endbild: Punkte in der Linse, Ring als Anteil von 1.000 */
+.fk-punkte { background: var(--haupt); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+.fk-punkte svg { position: absolute; inset: 7%; width: 86%; height: 86%; transform: rotate(-90deg); overflow: visible; }
+.fk-punkte .spur { fill: none; stroke: rgba(255,255,255,.2); stroke-width: 7; }
+.fk-punkte .bogen { fill: none; stroke: #fff; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 1.3s cubic-bezier(.3,.7,.3,1); }
+.fk-zahl { position: relative; font-weight: 800; font-size: calc(var(--d) * var(--fk-zahlk, .27)); line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.fk-zahl.lang { font-size: calc(var(--d) * var(--fk-zahl, .215)); }   /* „1.000“ passt in die Linse */
+.fk-von { position: relative; margin-top: 4px; white-space: nowrap; font-size: calc(var(--d) * var(--fk-von, .055)); opacity: .9; }
+.fk-plakette { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 13px; border-radius: 14px; background: var(--haupt-zart, #eef6f6); color: var(--haupt-dunkel); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fk-plakette[hidden] { display: none; }
+.fk-plakette svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.fk-bilanz { margin: 0; font-size: 13.5px; color: #2c3a3b; }
+.fk-bestzeile.neu { color: var(--haupt-dunkel); font-weight: 700; }
+.fk-frei { margin: -8px 0 16px; font-size: 12.5px; font-weight: 700; color: var(--haupt-dunkel); }
+.fk-frei[hidden] { display: none; }
+/* Abbruch: kleiner Hinweis unter der Bilanz („Punkte zählen nur, wenn du das Level schaffst.“), Stil wie Bestwert-Zeile */
+.fk-abbruch-hinweis { margin: 6px 0 0; font-size: 12.5px; color: #5a6b6c; }
+.fk-abbruch-hinweis[hidden] { display: none; }
+.fk-bewertung.rein { animation: fkBewertung .6s cubic-bezier(.2,.8,.3,1.4) .25s both; }
+@keyframes fkBewertung { from { opacity: 0; transform: scale(.8); } }
+
+/* Hohe Bildschirme: luftig */
+@media (min-height: 760px) and (orientation: portrait) {
+  .fk-schirm { padding-top: calc(76px + env(safe-area-inset-top)); }
+  .fk-linse { --d: min(66vw, 34vh, 310px); }
+}
+/* Kleine Hochformate (z. B. 320×640): Linse etwas kleiner, damit auch lange Anleitungen (L3, L4 mit Ton-Hinweis) ohne
+   Scrollen passen */
+@media (orientation: portrait) and (max-height: 700px) {
+  .fk-linse { --d: min(58vw, 27vh, 260px); }
+  .fk-buehne { gap: clamp(10px, 2vh, 18px); }
+}
+/* Flache Bildschirme (quer): Linse links, Karte rechts */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fk-schirm { padding: calc(52px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); justify-content: center; }
+  .fk-buehne { flex-direction: row; max-width: 720px; justify-content: center; gap: clamp(18px, 5vw, 48px); }
+  .fk-linse { --d: min(58vh, 34vw, 280px); }
+  .fk-karte { max-width: 340px; padding: 14px 18px 12px; }
+  .fk-titel { font-size: clamp(24px, 7.5vh, 32px); margin-bottom: 9px; }
+  .fk-bewertung { font-size: clamp(22px, 7vh, 30px); margin-bottom: 10px; }
+  .fk-anleitung { font-size: 13px; }
+  .fk-regel { margin-top: 5px; }
+  .fk-hinweis { margin-top: 7px; }
+  .fk-best, .fk-bestzeile { margin: 10px 0 11px; }
+  .fk-frei { margin: -5px 0 11px; }
+  .fk-knopf { padding: 10px 16px; font-size: 15.5px; }
+  .fk-links { margin-top: 8px; }
+  .fk-link { min-height: 42px; font-size: 14.5px; }
+}
+@media (orientation: landscape) and (max-height: 380px) {
+  .fk-schirm { padding-top: calc(46px + env(safe-area-inset-top)); }
+  .fk-linse { --d: min(62vh, 30vw, 230px); }
+  .fk-dach { font-size: 10px; }
+  .fk-anleitung { font-size: 12.5px; line-height: 1.35; }
+  .fk-regel, .fk-best, .fk-bilanz, .fk-bestzeile { font-size: 11.5px; }
+  .fk-regel { margin-top: 4px; }
+  .fk-hinweis { margin-top: 5px; }
+  .fk-best, .fk-bestzeile { margin: 8px 0 9px; }
+  .fk-frei { margin: -4px 0 9px; }
+  .fk-plakette { margin-bottom: 6px; }
+  .fk-knopf { padding: 8px 14px; }
+  .fk-titel { margin-bottom: 7px; } .fk-bewertung { margin-bottom: 8px; }
+  .fk-links { margin-top: 7px; gap: 8px; }
+  .fk-link { min-height: 40px; padding: 6px 10px; font-size: 14px; }
+}
+/* sehr flach (568×320): Karte straffer, damit auch L4 (Anleitung + Ton-Hinweis) ganz passt */
+@media (orientation: landscape) and (max-height: 340px) {
+  .fk-schirm { padding-top: calc(40px + env(safe-area-inset-top)); padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .fk-karte { padding: 9px 16px 9px; }
+  .fk-titel { font-size: clamp(20px, 7vh, 26px); margin-bottom: 6px; }
+  .fk-anleitung { font-size: 12px; line-height: 1.3; }
+  .fk-hinweis { margin-top: 4px; padding: 3px 10px; font-size: 11.5px; }
+  .fk-best, .fk-bestzeile { margin: 6px 0 7px; }
+  .fk-knopf { padding: 7px 14px; font-size: 15px; }
+  .fk-links { margin-top: 6px; }
+  .fk-link { min-height: 38px; }
+}
+@media (max-width: 350px) {
+  .fk-schirm { padding-left: 12px; padding-right: 12px; }
+  .fk-karte { padding-left: 14px; padding-right: 14px; }
+}
+
+/* ---------- Level-Titel vor jedem Level (2–3s, Tippen überspringt) ---------- */
+#fkTitel {
+  position: fixed; inset: 0; z-index: 25; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--haupt-dunkel) 30%, transparent), color-mix(in srgb, var(--haupt-tief) 70%, transparent));
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  animation: fkTitelWeg .35s ease 2.15s forwards;
+}
+#fkTitel[hidden] { display: none; }
+#fkTitel.stand { animation: none; }
+.fk-tlinse {
+  --d: min(64vw, 56vh, 300px);
+  width: var(--d); height: var(--d); border-radius: 50%; border: calc(var(--d) * .03) solid #fff;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--haupt-hell) 70%, #fff), var(--haupt) 55%, var(--haupt-dunkel));
+  box-shadow: 0 14px 40px rgba(0,0,0,.35); color: #fff; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  animation: fkTLinse .5s cubic-bezier(.2,.8,.3,1.2) both;
+}
+.fk-tlinse .klein { font-size: calc(var(--d) * var(--fk-tklein, .06)); font-weight: 600; letter-spacing: .16em; text-transform: uppercase; opacity: .9; }
+/* Größe aus schirme.js (linsenSchrift): längster Name mit 12 % Luft je Seite, alle Namen gleich groß */
+.fk-tlinse .gross { white-space: nowrap; font-size: calc(var(--d) * var(--fk-tname, .14)); font-weight: 800; line-height: 1.1; animation: fkScharf 1s ease .15s both; }
+@keyframes fkTLinse { from { opacity: 0; transform: scale(.7) rotate(-20deg); } }
+@keyframes fkScharf { from { filter: blur(9px); opacity: .3; } }   /* ohne Sperren: Buchstaben bleiben im Rand */
+@keyframes fkTitelWeg { to { opacity: 0; visibility: hidden; } }
+
+/* ---------- Bewegung reduzieren ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fk-schirm *, #fkTitel, #fkTitel *, .fk-logo, .fk-chip { animation-duration: .01s !important; animation-delay: 0s !important; transition-duration: .01s !important; }
+  #fkTitel { animation: fkTitelWeg .3s ease 1.8s forwards !important; }
+}
+.fk-link[hidden] { display: none; }
+
+/* ---------- Level 2–5: Ansage-Band unter der Kopfzeile, Zusatzansage, Brillen-Schalter (Phase 4) ---------- */
+#fkAnsage {
+  position: fixed; z-index: 5; left: 50%; top: calc(92px + env(safe-area-inset-top)); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 9px; max-width: calc(100vw - 24px); height: 42px; padding: 0 16px 0 12px; border-radius: 22px;
+  background: color-mix(in srgb, var(--haupt) 88%, transparent); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  font-size: 16px; font-weight: 700; white-space: nowrap; pointer-events: none;
+}
+#fkAnsage[hidden] { display: none; }
+#fkAnsage.neu { animation: fkAnsageRein .45s cubic-bezier(.2,.8,.3,1.3) both; }
+@keyframes fkAnsageRein { from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(.9); } }
+.fk-a-text { overflow: hidden; text-overflow: ellipsis; }
+/* L4: Phase im Band („Erst anhören“ / „Jetzt hinhören“), dezent, wechselt weich */
+.fk-a-phase { flex: none; margin-left: .15em; padding: .18em .6em; border-radius: 1em; background: rgba(255,255,255,.16); font-size: .78em; font-weight: 600; opacity: .92; }
+.fk-a-phase.jetzt { background: #fff; color: var(--haupt-dunkel); opacity: 1; }
+.fk-a-phase[hidden] { display: none; }
+.fk-a-phase.wechsel { animation: fkPhase .45s ease both; }
+@keyframes fkPhase { from { opacity: 0; transform: translateY(-3px); } }
+.fk-a-bild { display: inline-flex; align-items: center; flex: none; }
+.fk-a-bild[hidden] { display: none; }
+.fk-a-bild canvas { display: block; }
+.fk-a-bild svg { width: 1.375em; height: 1.375em; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+#fkAnsage.klein { height: 32px; font-size: 13.5px; font-weight: 600; padding: 0 13px 0 10px; gap: 7px; background: rgba(10, 50, 52, .62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+#fkAnsage.klein .fk-a-bild svg { width: 1.33em; height: 1.33em; }
+#fkAnsage.hoert .fk-a-bild svg path + path { animation: fkHoert .5s ease-in-out infinite alternate; }
+@keyframes fkHoert { from { opacity: .25; } }
+#fkZusatz {
+  position: fixed; z-index: 7; left: 50%; top: 42%; transform: translate(-50%, -50%); pointer-events: none;
+  padding: .5em 1em; border-radius: 1.2em; background: rgba(255,255,255,.96); color: var(--haupt-dunkel);
+  font-size: clamp(20px, min(3.6vh, 2.6vw), 34px); font-weight: 800; box-shadow: 0 8px 24px rgba(0,0,0,.25); white-space: nowrap;
+  display: flex; align-items: center; gap: .5em;
+}
+#fkZusatz[hidden] { display: none; }
+#fkZusatz .fk-z-bild { display: inline-flex; padding: .14em; border-radius: 50%; background: var(--haupt); }
+#fkZusatz .fk-z-bild canvas { display: block; }
+#fkZusatz.neu { animation: fkZusatz var(--dauer, 1.5s) ease both; }
+/* Band pulsiert einmal (Richtungswechsel) */
+#fkAnsage.puls { animation: fkAnsagePuls .6s ease 1; }
+@keyframes fkAnsagePuls { 0%, 100% { transform: translateX(-50%) scale(1); } 40% { transform: translateX(-50%) scale(1.14); box-shadow: 0 0 0 6px rgba(255,255,255,.55), 0 6px 18px rgba(0,0,0,.25); } }
+@keyframes fkZusatz { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.8); } 15%, 75% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); } }
+#fkBrille {
+  position: fixed; z-index: 6; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; gap: 4px; padding: 4px; border-radius: 30px; background: rgba(10, 50, 52, .55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+#fkBrille[hidden] { display: none; }
+#fkBrille button {
+  display: inline-flex; align-items: center; gap: 7px; height: 46px; padding: 0 16px 0 12px; border: 0; border-radius: 24px;
+  background: transparent; color: #fff; font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  transition: background .2s, color .2s, transform .15s;
+}
+#fkBrille button svg { width: 34px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+#fkBrille button.an { background: #fff; color: var(--haupt-dunkel); }
+#fkBrille button:active { transform: scale(.95); }
+#fkBrille button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+@media (min-width: 700px) { #fkAnsage { top: calc(48px + env(safe-area-inset-top)); } }
+@media (max-width: 360px) {
+  #fkAnsage { font-size: 14.5px; height: 38px; }
+  #fkBrille button { padding: 0 12px 0 9px; font-size: 13.5px; height: 42px; }
+}
+@media (orientation: landscape) and (max-height: 420px) {
+  #fkAnsage { height: 34px; font-size: 14px; }
+  #fkBrille button { height: 38px; font-size: 13px; }
+  #fkBrille button svg { width: 28px; height: 18px; }
+}
+/* Querformat und große Bildschirme: Ansage-Band deutlich größer, an die Fensterhöhe gekoppelt (MZ, 26.10.2026; L2–L5).
+   Handy hoch bleibt wie oben. Bei 812×375 etwa wie bisher, bei 1280×720 ca. 24px Schrift, ab 1080 hoch 30px. */
+@media (orientation: landscape) {
+  #fkAnsage { font-size: clamp(14px, 3.4vh, 30px); height: 2.55em; padding: 0 1em 0 .75em; gap: .55em; border-radius: 1.3em; }
+  #fkAnsage.klein { font-size: clamp(13.5px, 2.9vh, 26px); height: 2.4em; padding: 0 .95em 0 .75em; gap: .5em; }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  #fkAnsage { font-size: clamp(16px, 2.3vh, 26px); height: 2.6em; padding: 0 1em 0 .75em; gap: .55em; border-radius: 1.3em; }
+  #fkAnsage.klein { font-size: clamp(13.5px, 2vh, 22px); height: 2.4em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #fkAnsage, #fkZusatz { animation-duration: .01s !important; }
+  #fkZusatz.neu, #fkAnsage.puls { animation: none !important; }   /* nur einblenden, kein Puls */
+}
