@@ -1,5 +1,5 @@
 // Level 4 „Rauschen“ (MZ, 26.10.2026; Mechanik Phase 4): In der Hörkabine rauscht es gleichmäßig. Oben wird ein
-// Zielgeräusch angesagt (Name). Bei den ersten Zielen (`vorhoeren`) erklingt es vorher einmal zum Einprägen. Dann kommen
+// Zielgeräusch angesagt (Name). Bei Ziel 1 (`vorhoeren`) erklingt es vorher einmal zum Einprägen. Dann kommen
 // nacheinander andere Geräusche und zuletzt das Ziel; leise darunter liegen ab Ziel 3 lange Ablenk-Geräusche (Teppich).
 //   Treffer   tippen (irgendwo), während das Zielgeräusch klingt (bis `nachlauf` danach, mindestens FENSTER_MIN nach dem
 //             hörbaren Einsatz) – Punkte nach Reaktion ab dem hörbaren Einsatz (bis `voll` 100, bis `grenze` linear auf 50)
@@ -39,6 +39,10 @@
   const FENSTER_MIN = 1.2;   // Fenster endet frühestens so lange nach dem hörbaren Einsatz (auch bei sehr kurzen Klängen)
   const SCHONZEIT = 0.5;     // so lange nach Beginn der Hörphase wird Tippen ignoriert
   const WARTEN = 2.5;        // höchstens so lange wartet ein Geräusch, bis es wirklich erklingen kann
+  // Bewegtes Hörkabinen-Bild (MZ, 26.10.2026; geht mit jedem Kundenfoto, nur Zuschnitt und Licht im Code):
+  const ZOOM = 0.06, ZOOM_DAUER = 80;   // ganz langsames Heranzoomen 100 % → 106 % über ca. 80s (weich, Ränder nie sichtbar)
+  const SCHIMMER = 0.16, SCHIMMER_DAUER = 0.5;   // heller Schleier, wenn ein Geräusch am Ohr erklingt (Ziel oder Ablenker)
+  const ruhig = () => !!(window.FK && FK.ruhig && FK.ruhig());
 
   window.FOKUS_LEVEL[4] = function (api) {
     const W = D.rauschen, N = D.regeln.ziele, R = D.regeln;
@@ -83,11 +87,32 @@
       if (ziel.hoerenAb >= ab) ziel.hoerenAb += d;
       ziel.ereignisse.forEach(e => { if (!e.gespielt && e.start >= ab) e.start += d; });
     }
-    function ablenkerWaehlen(m, zahl, aehnlich) {
-      const andere = pool().filter(p => p.name !== m.name);
-      let kand = [];
-      if (aehnlich && m.paar) kand = mischen(andere.filter(p => p.paar === m.paar));
-      return kand.concat(mischen(andere.filter(p => p.art === 'ziel' && !kand.includes(p)))).slice(0, zahl);
+    // Paar-Partner (ähnlich klingend, motive.js `paar`) – auch lange Ablenker wie „Fahrradklingel“
+    const partner = m => (m.paar ? pool().filter(p => p.paar === m.paar && p.name !== m.name) : []);
+    // Ablenker vor dem Ziel: `paare` davon Verwechsler (gibt es nur einen Partner, kommt er mehrmals), der Rest andere
+    // Zielgeräusche ohne Bezug zum Ziel; Reihenfolge gemischt (MZ, 26.10.2026: mehr Verwechsler gegen Ende)
+    function ablenkerWaehlen(m, zahl, paare) {
+      const part = mischen(partner(m)), wahl = [];
+      for (let i = 0; i < Math.min(paare || 0, zahl) && part.length; i++) wahl.push(part[i % part.length]);
+      const rest = mischen(pool().filter(p => p.art === 'ziel' && p.name !== m.name && !(m.paar && p.paar === m.paar)));
+      return mischen(wahl.concat(rest.slice(0, zahl - wahl.length)));
+    }
+    // Reihe der 10 Ziele: je Ziel die Zahl der Verwechsler würfeln (W.aehnlich); wo welche nötig sind, nur Ziele mit Partner;
+    // leise Ziele (W.leiseSpaet) nicht bei lautem Rauschen (ab W.leiseSpaetAb)
+    let paarZahl = [];
+    function reiheBauen() {
+      const alle = mischen(ziele()), reihe = [];
+      paarZahl = [];
+      for (let k = 0; k < N; k++) {
+        const a = Array.isArray(W.aehnlich) ? (W.aehnlich[Math.min(k, W.aehnlich.length - 1)] || 0) : 0;
+        const n = Math.floor(a) + (Math.random() < a - Math.floor(a) ? 1 : 0);
+        const leiseNicht = m => !(k + 1 >= (W.leiseSpaetAb || 99) && (W.leiseSpaet || []).includes(m.name));
+        let i = alle.findIndex(m => (!n || partner(m).length) && leiseNicht(m));
+        if (i < 0) i = alle.findIndex(m => !n || partner(m).length);
+        if (i < 0) i = 0;
+        reihe.push(alle.splice(i, 1)[0] || reihe[0]); paarZahl.push(n);
+      }
+      return reihe;
     }
     function naechstes() {
       if (nr >= N) { aus = true; api.fertig(); return; }
@@ -106,7 +131,7 @@
       ziel.hoerenAb = t;
       t += 0.7;
       const zahl = W.ablenker[Math.min(k, W.ablenker.length - 1)] || 0;
-      ablenkerWaehlen(m, zahl, k + 1 >= W.aehnlichAb).forEach(p => {
+      ablenkerWaehlen(m, zahl, paarZahl[k] || 0).forEach(p => {
         const e = ereignis(p, t, false); ziel.ereignisse.push(e);
         const [a, b] = [lerp([W.luecke[0][0], W.luecke[1][0]], k, N), lerp([W.luecke[0][1], W.luecke[1][1]], k, N)];
         t = e.ende + a + Math.random() * (b - a);
@@ -148,6 +173,20 @@
       api.ergebnis(e);
       phase = 'pause'; uhr = W.pause;
     }
+    // Stärke des Schimmers jetzt: je Geräusch (Vorführung, Ablenker, Ziel – nicht Teppich/Grundrauschen) ab seinem hörbaren
+    // Einsatz SCHIMMER_DAUER lang, kurz eingeblendet, quadratisch ausblendend, × (0,5 + 0,5 × aktuelle Lautstärke)
+    function schimmer() {
+      if (!ziel) return 0;
+      let a = 0;
+      (ziel.vor ? [ziel.vor] : []).concat(ziel.ereignisse).forEach(e => {
+        const r = rel(e); if (r == null) return;
+        const alt = r - e.einsatz; if (alt < 0 || alt >= SCHIMMER_DAUER) return;
+        const ein = Math.min(1, alt / 0.06), aus = Math.pow(1 - alt / SCHIMMER_DAUER, 2), i = Math.floor(r * 40);
+        const laut = i >= 0 && i < e.k.huelle.length ? e.k.huelle[i] : 0;
+        a = Math.max(a, SCHIMMER * ein * aus * (0.5 + 0.5 * laut));
+      });
+      return a * (ruhig() ? 0.55 : 1);
+    }
     const welleY = () => Math.max(api.oben() + 70, Math.min(H - 70, H * (B > H ? 0.68 : 0.64)));
 
     return {
@@ -159,7 +198,7 @@
       vorladen() { pool().forEach(m => { if (m.ton) TON.klang(m); }); },   // echte Aufnahmen vorab laden (Platzhalter erst bei Bedarf)
       neu(abZiel) {
         allesAus();
-        reiheZiele = mischen(ziele());
+        reiheZiele = reiheBauen();
         fx.leeren(); aus = false; ziel = null; zeit = 0; verlauf = new Array(64).fill(0);
         nr = Math.max(0, (abZiel || 1) - 1); phase = 'start'; uhr = 0.4; uhrTon.zurueck();
         TON.audio();
@@ -232,9 +271,21 @@
         return true;
       },
       zeichne(g, b, h, laeuft) {
-        if (hg) g.drawImage(hg, 0, 0, B, H);
+        if (hg) {
+          // Heranzoomen: Ausschnitt aus der Bildmitte, weich (smoothstep) über die Level-Zeit; bei „Bewegung reduzieren“ keins
+          const u = ruhig() ? 0 : klemm(zeit / ZOOM_DAUER, 0, 1), s = 1 + ZOOM * u * u * (3 - 2 * u);
+          if (s > 1.0001) { const sw = hg.width / s, sh = hg.height / s; g.drawImage(hg, (hg.width - sw) / 2, (hg.height - sh) / 2, sw, sh, 0, 0, B, H); }
+          else g.drawImage(hg, 0, 0, B, H);
+        }
         if (!laeuft) return;
         g.fillStyle = 'rgba(8,30,32,.22)'; g.fillRect(0, 0, B, H);
+        // Schall-Schimmer: gleiche Uhr wie Ton und Wertung (rel = am Ohr); 0,5s ausblendend, heller, je lauter der Klang gerade ist
+        const a = schimmer();
+        if (a > 0.002) {
+          const r = Math.max(B, H) * 0.75, v = g.createRadialGradient(B / 2, H * 0.42, 0, B / 2, H * 0.42, r);
+          v.addColorStop(0, `rgba(255,255,255,${a})`); v.addColorStop(0.55, `rgba(255,255,255,${a * 0.35})`); v.addColorStop(1, 'rgba(255,255,255,0)');
+          g.save(); g.globalCompositeOperation = 'screen'; g.fillStyle = v; g.fillRect(0, 0, B, H); g.restore();
+        }
         // dezente Schallwelle in einer Kapsel
         const w = Math.min(B * 0.84, 560), hh = Math.max(70, Math.min(130, H * 0.16)), x = (B - w) / 2, y = welleY();
         g.save();
@@ -249,9 +300,10 @@
         const z = ziel.zielE, jetzt = performance.now(), hj = TON.hoerJetzt();
         // perf = performance.now()-Zeit, zu der etwas am Ohr ankommt (für Bots): hörbarer Einsatz bzw. Ende
         const perf = (e, s) => (!e.gespielt ? null : e.t0 != null ? jetzt + (e.t0 + s - hj) * 1000 : jetzt + (e.at + s - ziel.t) * 1000 / tempo);
-        const info = e => ({ name: e.m.name, start: e.start, ende: e.ende, len: e.len, einsatz: e.einsatz, ziel: e.ziel, gespielt: e.gespielt,
+        const info = e => ({ name: e.m.name, verwechsler: !e.ziel && !!ziel.m.paar && e.m.paar === ziel.m.paar, start: e.start, ende: e.ende, len: e.len, einsatz: e.einsatz, ziel: e.ziel, gespielt: e.gespielt,
           mitTon: e.t0 != null, gewartet: +e.gewartet.toFixed(3), hoerbarPerf: perf(e, e.einsatz), endePerf: perf(e, e.len), fensterEnde: fensterEnde(e), rel: rel(e) });
-        return { nr: ziel.k + 1, name: ziel.m.name, phase, t: ziel.t, hoerenAb: ziel.hoerenAb, vorhoeren: !!ziel.vor, latenz: TON.latenz(),
+        const zu = ruhig() ? 0 : klemm(zeit / ZOOM_DAUER, 0, 1);
+        return { bild: { zoom: +(1 + ZOOM * zu * zu * (3 - 2 * zu)).toFixed(4), schimmer: +schimmer().toFixed(3) }, nr: ziel.k + 1, name: ziel.m.name, paarSoll: paarZahl[ziel.k] || 0, rauschPegel: lerp(W.pegelRauschen, ziel.k, N), phase, t: ziel.t, hoerenAb: ziel.hoerenAb, vorhoeren: !!ziel.vor, latenz: TON.latenz(),
           hoerenAbPerf: jetzt + (ziel.hoerenAb - ziel.t) * 1000 / tempo, schonzeit: SCHONZEIT,
           ziel: Object.assign(info(z), { echt: z.k.echt }), bisZiel: z.start - ziel.t, vor: ziel.vor ? info(ziel.vor) : null,
           ereignisse: ziel.ereignisse.map(info),

@@ -28,9 +28,10 @@
           <p class="fk-anleitung"></p>
           <p class="fk-regel"></p>
           <p class="fk-hinweis" hidden></p>
+          <div class="fk-links fk-tonein"><button class="fk-link fk-tonan" id="fkTonEin" type="button">${T.tonEin || 'Ton einschalten'}</button></div>
           <p class="fk-best"></p>
           <button class="fk-knopf" id="fkLos" type="button">${T.los}</button>
-          <div class="fk-links"><button class="fk-link fk-menue" type="button">${T.menue}</button></div>
+          <div class="fk-links"><button class="fk-link fk-tonan fk-ton2" type="button">${T.tonEin || 'Ton einschalten'}</button><button class="fk-link fk-menue" type="button">${T.menue}</button></div>
         </div>
       </div>
     </section>
@@ -57,6 +58,21 @@
   const $ = s => document.querySelector(s);
   // „Zum Menü“ ist ein echter Knopf (QA, 26.10.2026: einheitlich mit „Nochmal“) – führt zur Startseite der Sammlung
   document.querySelectorAll('.fk-menue').forEach(k => k.addEventListener('click', () => { location.href = menue; }));
+  // Level mit Ton-Hinweis (L4): Ist der Ton aus, steht unter dem Hinweis „Ton einschalten“ (MZ, 26.10.2026). Der Knopf macht
+  // dasselbe wie der Ton-Knopf oben (klickt ihn) und verschwindet dann. Schaltet man oben um, folgt er.
+  const tonIstAn = () => { try { return localStorage.getItem('mg:ton') !== 'aus'; } catch (e) { return true; } };
+  let tonKnopfZeigen = false;
+  function tonEinAnpassen() {
+    const zeigen = tonKnopfZeigen && !tonIstAn(), s = $('#fkStart');   // sichtbar über die Klasse fk-eng (fokus.css)
+    if (s.classList.contains('fk-eng') !== zeigen) { s.classList.toggle('fk-eng', zeigen); if (aktiv === s) linseMalen(s, aktivNr); }   // Linse kleiner → neu malen
+  }
+  document.querySelectorAll('.fk-tonan').forEach(k => k.addEventListener('click', () => {
+    const oben = document.getElementById('tonKnopf');
+    if (oben && !tonIstAn()) oben.click();
+    setTimeout(tonEinAnpassen, 0);
+  }));
+  const obenKnopf = document.getElementById('tonKnopf');
+  if (obenKnopf) obenKnopf.addEventListener('click', () => setTimeout(tonEinAnpassen, 0));
   const logoBox = $('#fkLogo');
   logoBox.setAttribute('aria-label', K.firma || '');
   FK.logoEinbetten(logoBox, K.logoAufHell || '../kunde/logo-quer.svg', { zeichen: FK.farben.haupt, schrift: FK.farben.haupt });
@@ -124,6 +140,7 @@
     const h = s.querySelector('.fk-hinweis');
     h.hidden = !lv.hinweis; h.textContent = lv.hinweis || '';
     if (lv.hinweis) h.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>');
+    tonKnopfZeigen = !!lv.hinweis; tonEinAnpassen();
     const b = s.querySelector('.fk-best');
     b.textContent = T.bestwert + ': ';
     b.append(el('b', '', FK.zahl(best > 0 ? best : 0) + '/' + FK.zahl(D.regeln.hoechst)), ' ' + T.punkte);

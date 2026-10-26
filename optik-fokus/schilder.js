@@ -13,7 +13,9 @@
   'use strict';
   const daten = () => window.FOKUS_SCHRIFT || {};
   // nur Weitblick-Motive (gleiche Namen in anderen Leveln, z. B. „Radfahrer“ in Schärfe, bekommen keine Schrift)
-  const eintrag = m => (m && m.bild && /(^|\/)weitblick\//.test(m.bild) && daten()[m.name]) || null;
+  // Schrift nur auf großen, flachen Schildern (MZ, 26.10.2026): Name beginnt mit einem Wort aus daten.js weitblick.schriftNur
+  const erlaubt = m => { const l = (window.FOKUS && window.FOKUS.weitblick && window.FOKUS.weitblick.schriftNur) || null; return !l || l.some(w => m.name.startsWith(w)); };
+  const eintrag = m => (m && m.bild && /(^|\/)weitblick\//.test(m.bild) && erlaubt(m) && daten()[m.name]) || null;
   const BASIS = '../schrift/weitblick/';
   const DATEIEN = {
     FkVerkehr: 'encode/encodesanssemicondensed-semibold.woff2',   // Encode Sans Semi Condensed SemiBold – Verkehrsschild-Anmutung

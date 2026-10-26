@@ -101,10 +101,24 @@ window.FOKUS = {
       bewertungen: ['Weitblick bewiesen', 'Nah und fern im Griff', 'Gut umgestellt', 'Etwas gezögert', 'Oft daneben'],
       hintergrund: { hoch: 'bilder/hintergrund/weitblick-stadtplatz-hoch.webp', quer: 'bilder/hintergrund/weitblick-stadtplatz-quer.webp' },
       position: [0.5, 0.78], linse: [0.62, 0.4],   // linse = Ausschnitt in der Linse des Startbilds (Häuser, Kirchturm)
-      // fern = Fußlinie der fernen Ziele (Pflaster vor den Häusern), nah = Fußlinie auf dem Cafétisch, tisch = Tischkante
+      // Geometrie des Stadtplatz-Bilds (eingemessen 26.10.2026, Anteile des Bilds: x der Breite, y der Höhe) für den
+      // Fokusring: Dinge stehen in richtiger Perspektive auf Pflaster bzw. Tisch, jede Stelle hat eine Tiefe.
+      //   horizont      Augenhöhe im Bild (Fluchtlinie)
+      //   kamera        Augenhöhe über dem Pflaster in m (aus Bank, Haltestelle und Türen im Bild nachgemessen)
+      //   tischAuge     Augenhöhe über der Tischplatte in m (Maßstab der Dinge auf dem Tisch)
+      //   tischHinten   Abstand der hinteren Tischkante in m (legt die Brennweite fest)
+      //   fassade       Fußlinie der Häuser (hier ist die Tiefe 1 = ganz fern)
+      //   tischkante    hintere Kante der Tischplatte (Linie von links nach rechts); darunter liegt der Tisch
+      //   hinten        hinterste Fußlinie für ferne Dinge (vor Brunnen, Pflanzkübeln, Haltestelle)
+      //   sperren       Bereiche ohne Dinge [x0, y0, x1, y1] (z. B. Stuhllehne)
       zonen: {
-        hoch: { fern: [0.5, 0.6], tisch: 0.63, nah: [0.8, 0.96] },
-        quer: { fern: [0.53, 0.63], tisch: 0.665, nah: [0.8, 0.97] },
+        hoch: { horizont: 0.478, kamera: 0.83, tischAuge: 0.465, tischHinten: 1.1, fassade: 0.49,
+          tischkante: [[0, 0.668], [0.08, 0.663], [0.15, 0.656], [0.2, 0.652], [0.3, 0.646], [0.4, 0.643], [0.5, 0.642], [0.6, 0.642], [0.7, 0.644], [0.8, 0.648], [0.9, 0.655], [0.95, 0.662], [1, 0.668]],
+          hinten: [[0, 0.556], [0.47, 0.556], [0.48, 0.523], [0.78, 0.523], [0.79, 0.538], [1, 0.538]],
+          sperren: [[0, 0.62, 0.09, 0.7]] },
+        quer: { horizont: 0.437, kamera: 1.74, tischAuge: 0.365, tischHinten: 1.1, fassade: 0.495,
+          tischkante: [[0, 0.716], [0.05, 0.706], [0.1, 0.696], [0.15, 0.686], [0.2, 0.676], [0.25, 0.667], [0.3, 0.66], [0.33, 0.656], [0.5, 0.656], [0.6, 0.657], [0.7, 0.66], [0.8, 0.664], [0.9, 0.67], [0.94, 0.674], [0.96, 0.7], [0.98, 0.725], [1, 0.75]],
+          hinten: [[0, 0.551], [0.11, 0.551], [0.115, 0.589], [0.41, 0.589], [0.415, 0.563], [0.53, 0.563], [0.535, 0.541], [0.78, 0.541], [0.785, 0.596], [0.98, 0.596], [0.985, 0.566], [1, 0.566]] },
       },
     },
   ],
@@ -156,12 +170,21 @@ window.FOKUS = {
     grundrauschen: null,         // Adresse einer Rausch-Aufnahme ab optik-fokus/; null = im Browser erzeugt (nahtlos, 0 KB)
     farbe: 0.35,                 // erzeugtes Rauschen: 0 = rosa (heller), 1 = braun (dumpfer), dazwischen gemischt
     // Lautstärke des Rauschens im Verhältnis zu einem typischen Zielgeräusch (1 = gleich laut, 0,5 = 6 dB leiser),
-    // Ziel 1 → Ziel 10 (steigt). Größer = schwerer herauszuhören.
-    pegelRauschen: [0.35, 1.0],
+    // Ziel 1 → Ziel 10 (steigt). Größer = schwerer herauszuhören. MZ, 26.10.2026 („schwerer“): endet +3 dB über dem Ziel
+    // (1,41; vorher 1,0) – gemessen mit Material/Skripte/rauschabstand.py: im besten Oktavband ragen die Ziele in ihren lauten
+    // Momenten im Median 13,6 dB aus dem Rauschen (bei 1,0: 16,6 dB); die schwächsten stehen in leiseSpaet.
+    pegelRauschen: [0.35, 1.41],
     pegelZiel: 0.55,             // Lautstärke der Geräusche
-    vorhoeren: 4,                // Ziel 1–4: das Zielgeräusch erklingt vorher einmal zum Einprägen
-    ablenker: [0, 1, 1, 1, 2, 2, 2, 2, 3, 3],   // andere Geräusche vor dem Ziel (ab aehnlichAb bevorzugt ähnliche Paare)
-    aehnlichAb: 6,
+    vorhoeren: 1,                // nur Ziel 1: das Zielgeräusch erklingt vorher einmal zum Einprägen (MZ, 26.10.2026; vorher 1–4)
+    ablenker: [0, 1, 1, 1, 2, 2, 2, 2, 3, 3],   // andere Geräusche vor dem Ziel
+    // davon „Verwechsler“ (gleiches Paar wie das Ziel, motive.js `paar`, z. B. Türklingel/Fahrradklingel), je Ziel:
+    // ganze Zahl = so viele sicher, Nachkommastelle = Wahrscheinlichkeit für einen weiteren (MZ, 26.10.2026: steigt, ab Ziel 6
+    // mindestens einer, gegen Ende zwei). Ab Ziel 6 kommen dafür nur Ziele mit Paar-Partner dran (Partner ggf. zweimal).
+    aehnlich: [0, 0, 0.25, 0.35, 0.5, 1, 1, 1.5, 2, 2],
+    // Ziele, die bei lautem Rauschen (ab leiseSpaetAb, Ziel 7–10: Rauschen lauter als das Ziel) kaum noch herausragen
+    // (rauschabstand.py: bester Bandabstand < 6 dB bei +3 dB) – kommen nur bei den Zielen davor dran
+    leiseSpaet: ['Basketball prellt', 'Blinker klackt', 'Garagentor', 'Holzboden Schritte', 'Wanduhr schlägt', 'Schreibmaschine'],
+    leiseSpaetAb: 7,
     teppich: [0, 0, 1, 1, 1, 1, 2, 2, 2, 2],    // lange Ablenk-Geräusche, die leise darunter liegen (zählen nicht als falsch)
     luecke: [[0.6, 1.2], [0.4, 0.9]],           // Stille zwischen zwei Geräuschen
     hoechstens: 2.6,             // Zielgeräusche werden höchstens so lang gespielt …
@@ -171,18 +194,55 @@ window.FOKUS = {
     grenze: [2.2, 1.2],          // … bis hierhin linear auf 50
     pause: 0.9,
   },
-  // Level 5 „Weitblick“: Lese- und Fernbrille, Ziel wird als Geräusch angesagt (ohne Ton als Text)
+  // Level 5 „Weitblick“ (überarbeitet 26.10.2026, MZ: Fokusring statt Brillen-Knöpfe, echte Szene statt Collage):
+  // Der Fokusring unten stellt die Schärfe stufenlos von nah (Tisch, Tiefe 0) nach fern (Häuser, Tiefe 1). Jedes Ding hat
+  // eine Tiefe (aus seinem Fußpunkt im Bild); scharf ist es nur in einem Bereich um seine Tiefe. Werte Ziel 1 → Ziel 10.
   weitblick: {
-    ziele: [3, 3, 4, 4, 5, 5, 6, 6, 6, 7],      // Dinge gleichzeitig im Bild (nah + fern zusammen)
-    zeit: [7.0, 3.8],            // Sekunden ab der Ansage bis „verpasst“
-    voll: [1.1, 0.8],            // Reaktion bis hier 100 Punkte, bis zur Zeitgrenze linear auf 50
+    ziele: [6, 6, 6, 6, 6, 7, 7, 7, 7, 7],      // Dinge gleichzeitig in der Szene (MZ, 26.10.2026: 6–7 bleiben)
+    zeit: [9.0, 6.0],            // Sekunden ab der Ansage bis „verpasst“ (Ring drehen braucht Zeit)
+    voll: [2.2, 1.5],            // Reaktion bis hier 100 Punkte, bis zur Zeitgrenze linear auf 50
     textNach: 1.2,               // mit Ton und echter Aufnahme erscheint der Text erst nach so vielen Sekunden
-    groesseFern: 0.19,           // Größe (Wurzel aus Breite × Höhe) als Anteil der kürzeren Bildschirmseite
-    groesseNah: 0.26,
-    unschaerfe: 0.03,            // Unschärfe ohne passende Brille (Anteil der kürzeren Seite)
-    brilleStart: 'nah',
+    toleranz: [0.09, 0.045],     // so weit (Tiefe 0–1) darf der Ring beim Tippen neben dem Ziel stehen – gegen Ende empfindlicher
+    weite: [0.42, 0.3],          // ab diesem Abstand (Tiefe) ist etwas ganz unscharf – kleiner = Schärfebereich schmaler
+    unschaerfe: 0.026,           // volle Unschärfe (Halbmesser) als Anteil der kürzeren Bildschirmseite
+    fokusStart: 0.15,            // Ring steht zu Beginn auf dem Tisch
+    weich: 0.07,                 // Sekunden, mit denen die Schärfe dem Ring weich folgt (Überblendung, auch bei „Bewegung reduzieren“)
+    ringWeg: 2.6,                // Drehung des Rings für den ganzen Weg nah → fern (Bogenmaß; etwa eine Wischbewegung)
+    naechste: 0.35,              // Abstand in m, der Tiefe 0 entspricht (vorderer Tischrand)
+    fernBand: 0.35,              // ferne Dinge stehen im hinteren Teil des Pflasters (Anteil von der hintersten Fußlinie zum Tisch)
+    // Platzregel je Motiv: Name → Anteil des Pflasters ab der hintersten Fußlinie, in dem das Ding stehen darf (z. B. 0,06 =
+    // nur ganz hinten bei den Häusern; statt fernBand). Zuerst für den Maibaum gebaut (MZ, 26.10.2026), der dann gestrichen wurde.
+    nurHinten: {},
+    dunst: 0.07,                 // ferne Dinge bekommen einen Hauch Luftdunst (passt sie ins Licht des Platzes)
+    wechsel: 0.35,               // so oft verschwindet nach einem Ziel zusätzlich ein anderes Ding (die Szene lebt)
     pause: 0.8,
-    ansageVor: 0.6,              // Dinge sind so lange zu sehen, bevor das Ziel angesagt wird
+    ansageVor: 0.8,              // neue Dinge sind so lange zu sehen, bevor das Ziel angesagt wird
+    // Höhe in m (wie hoch das Ding im Bild in Wirklichkeit ist) – bestimmt die Größe in der Perspektive. Ferne Dinge: Feld
+    // „Höhe ca. … m“ im Entwurf des Text Writers (daten-bauen.py → motive.js hoehe, geht vor). Nahe Dinge: vorerst diese
+    // Tabelle (Höhe, die das Ding im Bild „leicht von oben“ einnimmt). null = nicht im Spiel.
+    hoehe: {
+      'Handy-Nachricht': 0.12, 'Kassenbon': 0.12, 'Tischglocke': 0.08, 'Taschenrechner': 0.11, 'Armbanduhr': 0.06,
+      'Kugelschreiber': 0.11, 'Wasserflasche': 0.22, 'Fotoapparat': 0.09, 'Kassettenrekorder': 0.1, 'Sparschwein': 0.11,
+      'Brillenetui': 0.06, 'Tacker': 0.08, 'Marmeladenglas': 0.1, 'Teetasse': 0.1, 'Zahlenschloss': 0.09, 'Frühstücksei': 0.11,
+      'Pfeffermühle': 0.17, 'Kochtopf': 0.17, 'Taschenuhr': 0.07, 'Spielkarten': 0.08,
+      'Luftpolsterfolie': 0.13, 'Milchaufschäumer': 0.2, 'Sprühflasche': 0.25, 'Mundharmonika': 0.035, 'Strohhalm': 0.18,
+      'Elektrorasierer': 0.13, 'Schlüsselbund': 0.08, 'Weinglas': 0.2, 'Brezel': 0.09, 'Piccolo': 0.2, 'Brausetablette': 0.13,
+      'Nussschale': 0.08, 'Kaugummi': 0.07,
+    },
+    // Kleine Dinge auf dem Tisch erkennbar halten (MZ, 26.10.2026: Armbanduhr ca. 15 px, Kaugummi ca. 20 px waren zu winzig):
+    //   ab/kurve  Dinge unter `ab` m werden sanft angehoben: ab × (Höhe/ab)^kurve (Reihenfolge bleibt: Mundharmonika < Uhr < Fotoapparat)
+    //   px        Mindesthöhe im Bild bei 375 px kürzerer Seite (größere Bildschirme bis ×1,3) – kleine Dinge liegen dafür
+    //             nur so weit vorn auf dem Tisch, dass sie diese Höhe erreichen (hinten nur größere Dinge)
+    nahKlein: { ab: 0.09, kurve: 0.5, px: 40 },
+    // Flach liegende Dinge: Bild beim Zeichnen nur in der Höhe stauchen (Faktor), Breite bleibt – sonst wirkt es senkrecht
+    // stehend (MZ, 26.10.2026: Kassenbon). 0,57 ≈ sin 35° (Blick leicht von oben). Die Höhe in `hoehe` gilt ungestaucht;
+    // Mindesthöhe (nahKlein.px) und Trefferfläche (≥ 44 px) zählen nach dem Stauchen.
+    flach: { 'Kassenbon': 0.57 },
+    hoeheStandard: { nah: 0.1, fern: 1.8 },   // neue Motive ohne Höhe (bis der Text Writer sie liefert)
+    platzhalter: false,          // false = nur Motive mit Bild in die Szene (neue Bilder fehlen noch); true = fehlende als Kärtchen mit Namen
+    // Schrift nur auf großen, flachen Schildern (MZ, 26.10.2026: auf Tasse, Gläsern, Etiketten, Dosen „ganz schlimm“).
+    // Name beginnt mit einem dieser Wörter → Schrift aus weitblick-schrift.js; alle anderen Motive ohne Schrift.
+    schriftNur: ['Ortsschild', 'Haltestelle', 'Temposchild', 'Biergartentafel', 'Wegweiser', 'Litfaßsäule', 'Marktstand'],
   },
 
   // Feste Wörter der Oberfläche (Knöpfe, Kopfzeile, Endbild)
@@ -191,6 +251,7 @@ window.FOKUS = {
     menue: 'Zum Menü',
     weiter: 'Weiter',
     nochmal: 'Nochmal',
+    tonEin: 'Ton einschalten',   // L4-Startbild bei Ton aus (MZ, 26.10.2026)
     level: 'Level',
     bestwert: 'Dein Bestwert',
     gesamt: 'Dein Gesamt-Bestwert',
@@ -201,9 +262,8 @@ window.FOKUS = {
     ersterBest: 'Dein erster Bestwert',
     frei: 'Level {n} freigeschaltet',
     plakette: { genauigkeit: 'Ø {s} neben dem schärfsten Moment', reaktion: 'Ø {s} Reaktion' },
-    // Level 5: Schalter der Brillen (Wörter aus Auftrag/Anleitung „Lese- oder Fernbrille“)
-    lesebrille: 'Lesebrille',
-    fernbrille: 'Fernbrille',
+    // Level 5: Name des Fokusrings für Vorlesehilfen (nicht sichtbar)
+    fokusring: 'Fokusring',
   },
 };
 

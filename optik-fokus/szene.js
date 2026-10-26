@@ -341,10 +341,11 @@
   }
 
   // Motiv als Leinwand (Gerätepixel), Höhe hCss, Rand pad für die Unschärfe. Gibt { c, w, h, pad } in CSS-Pixeln zurück.
-  function motivBild(m, hCss, pad, dpr) {
+  // wCss (optional): eigene Breite – Level 5 staucht flach liegende Dinge (Kassenbon) nur in der Höhe
+  function motivBild(m, hCss, pad, dpr, wCss) {
     const img = bild(m.bild);
     const sv = img ? breite(img) / hoehe(img) : (SV[form(m)] || 1.4);
-    const w = hCss * sv, h = hCss;
+    const w = wCss > 0 ? wCss : hCss * sv, h = hCss;
     const c = document.createElement('canvas');
     c.width = Math.ceil((w + pad * 2) * dpr); c.height = Math.ceil((h + pad * 2) * dpr);
     // Motive mit Schrift: Leinwand im Arbeitsspeicher (schilder.js liest die Fläche einmal aus – sonst teures Zurücklesen von der Grafikkarte)

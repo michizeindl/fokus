@@ -56,7 +56,10 @@
     stufen.append(knopf);
   });
   const gesamt = $('#gesamt');
-  gesamt.append(T.gesamt + ': ', el('b', '', FK.zahl(summe)), '/' + FK.zahl(D.level.length * D.regeln.hoechst) + ' ' + T.punkte);
+  // in einer eigenen Zeile (span): #gesamt ist im Hochformat die Zone zwischen Linse und Knopf 1, der Text steht mittig darin
+  const gText = document.createElement('span');
+  gText.append(T.gesamt + ': ', el('b', '', FK.zahl(summe)), '/' + FK.zahl(D.level.length * D.regeln.hoechst) + ' ' + T.punkte);
+  gesamt.append(gText);
 
   // Sanfter Übergang ins Spiel statt hartem Sprung
   stufen.addEventListener('click', e => {

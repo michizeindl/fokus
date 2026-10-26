@@ -40,7 +40,7 @@
     oben: () => Math.max(SCH.hud.unterkante() + 12, window.FOKUS_GEMEIN ? window.FOKUS_GEMEIN.ansage.unterkante() + 8 : 0),
     // Rückmeldung im Spiel aus texte.js (zufällige Variante): Treffer stark/knapp, zu früh, falsch, verpasst („zu spät“
     // getippt zählt wie verpasst – die Liste enthält auch „Zu spät“)
-    // filter (optional): Wörter, die passen müssen (z. B. Level 5 „Falsche Brille“ nur bei falscher Brille)
+    // filter (optional): Wörter, die passen müssen
     rueckmeldung(art, punkte, filter) {
       const r = lv().rueckmeldung || {};
       const fall = art === 'treffer' ? (punkte >= D.starkAb ? 'stark' : 'knapp') : art === 'spaet' ? 'verpasst' : art;
@@ -195,6 +195,10 @@
     titelUeberspringen: () => SCH.titelEnde(),
     // L1/L3: ein Ablenker deckt die untere Hälfte des Ziels ab und zieht mit (weicht nicht aus) → Lage des Ablenkers
     ueberdecken() { const l = logik(lvNr); return l && l.testUeberdecken ? l.testUeberdecken() : null; },
+    // L5: jedes nahe Motiv n-mal mit der echten Platzwahl auf den leeren Tisch stellen → kleinste/größte Höhe in px
+    plaetze(n, namen) { const l = logik(lvNr); return l && l.testPlaetze ? l.testPlaetze(n, namen) : null; },
+    // L5: Motive nebeneinander auf dieselbe Tiefe stellen (Größenvergleich), z. B. szene(['Radfahrer', 'Schreiendes Kind'])
+    szene(namen, o) { const l = logik(lvNr); return l && l.testSzene ? l.testSzene(namen, o) : null; },
     ende(punkte, o) { o = o || {}; location.hash = 'level=' + lvNr + '&ende=' + punkte + (o.treffer != null ? '&treffer=' + o.treffer : '') + (o.reaktion != null ? '&reaktion=' + o.reaktion : ''); location.reload(); },
     abbruch(z) { location.hash = 'level=' + lvNr + '&abbruch=' + (z || 8); location.reload(); },
   };

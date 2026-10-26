@@ -43,7 +43,7 @@ body.weg { opacity: 0; }
   border-radius: 50%; box-shadow: 0 12px 34px rgba(0,0,0,.35);
 }
 @supports (container-type: size) {
-  .links { flex: 1 1 0; min-height: 0; container-type: size; }
+  .links { flex: 1 1 0; min-height: 0; container-type: size; justify-content: flex-start; }
   /* freier Platz minus Gesamt-Bestwert (Zeile + Abstand) und etwas Luft oben */
   .linse { --linse: max(96px, min(58vw, 300px, calc(100cqh - 60px))); }
 }
@@ -100,6 +100,15 @@ body.weg { opacity: 0; }
 .stufe.aus { opacity: .42; filter: grayscale(1); cursor: default; box-shadow: none; }
 .stufe.aus:hover, .stufe.aus:active { transform: none; box-shadow: none; }
 .stufe.aus:hover .punkt { transform: none; }
+
+@supports (container-type: size) {
+  /* „Dein Gesamt-Bestwert“ senkrecht mittig zwischen Linse und Knopf 1 (MZ, 26.10.2026): die Zeile ist eine Zone bis zum
+     ersten Knopf, der Text steht in ihrer Mitte. Freier Platz teilt sich 1 : 1,2 auf Luft über der Linse und diese Zone. */
+  .links::before { content: ""; flex: 1 1 0; }
+  .gesamt { flex: 1.2 1 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: clamp(8px, 1.6vh, 18px) 0; }
+  .gesamt > span { display: block; white-space: nowrap; }   /* immer eine Zeile – auch mit Bestwerten („4.975/5.000“) */
+  .stufen { margin-top: 0; }
+}
 
 /* ---------- Footer ---------- */
 .fuss {
@@ -162,10 +171,15 @@ html.intro .kopf { position: relative; z-index: 60; pointer-events: none; }
   .inhalt { flex-direction: row; justify-content: center; align-items: center; gap: clamp(20px, 5vw, 60px); padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
     --kg: clamp(5px, 1.4vh, 10px); --kh: clamp(34px, calc((100vh - 140px - 4 * var(--kg)) / 5), 50px); }
   @supports (height: 1dvh) { .inhalt { --kg: clamp(5px, 1.4dvh, 10px); --kh: clamp(34px, calc((100dvh - 140px - 4 * var(--kg)) / 5), 50px); } }
-  .links { flex: none; width: auto; max-width: 42%; container-type: normal; }
+  .links { flex: none; width: auto; max-width: 42%; container-type: normal; justify-content: center; }
+  .links::before { content: none; }
+  .gesamt { flex: none; display: block; padding: 0; margin: clamp(8px, 1.6vh, 18px) 0 0; }
+  .gesamt > span { white-space: nowrap; }   /* auch quer einzeilig (MZ, 26.10.2026: „Punkte“ brach bei 812×375 und 568×320 allein um) */
   .linse { --linse: min(46vh, 30vw, 250px); }
   @supports (height: 1dvh) { .linse { --linse: min(46dvh, 30vw, 250px); } }
-  .gesamt { font-size: 12px; max-width: 220px; }
+  /* Zeile darf breiter sein als die Linse (steht mittig unter ihr, reicht höchstens in den Abstand zu den Knöpfen);
+     Schrift nach der Höhe: 812×375 12px, 568×320 11px */
+  .gesamt { font-size: clamp(11px, 3.4vh, 12px); max-width: none; }
   .stufen { margin: 0; max-width: 360px; flex: 1 1 0; min-width: 0; }   /* Knöpfe nehmen den Rest, Bestwert-Zeile bleibt neben der Linse */
   .stufe { padding-right: 14px; --kp: min(40px, calc(var(--kh) - 8px)); }
   .stufe .lname { font-size: clamp(13.5px, 4vh, 16px); }

@@ -31,9 +31,14 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
   color: #fff; font-size: 13.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .fk-chip b { font-weight: 800; }
-.fk-ziel { gap: 0; }
-.fk-ziel .fk-motiv { font-weight: 400; opacity: .85; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; }
-.fk-fehler i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); transition: background .25s, transform .25s; }
+/* Kopfzeile bleibt eine Zeile im Bild: Punkte und Leben behalten ihre Breite, nur der Motivname wird bei Platzmangel gekürzt („…“) */
+.fk-chip { flex: none; }
+.fk-ziel { gap: 0; flex: 0 1 auto; min-width: 0; }
+.fk-ziel .fk-zn { flex: none; }
+.fk-ziel .fk-motiv { font-weight: 400; opacity: .85; max-width: 34vw; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Leben-Anzeige (drei Fehler-Kreise) gut sichtbar, auch für ältere Spieler (MZ, 26.10.2026: 11 → 15 px) */
+.fk-fehler { gap: 5px; }
+.fk-fehler i { width: 15px; height: 15px; flex: none; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); transition: background .25s, transform .25s; }
 .fk-fehler i.an { background: #ff8a65; border-color: #ff8a65; transform: scale(1.15); }
 .fk-chip.wackeln { animation: fkWackeln .4s ease; }
 @keyframes fkWackeln { 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
@@ -63,7 +68,7 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
 .fk-schirm::before { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(255,255,255,.08), rgba(0,0,0,.12)); }
 .fk-buehne { width: 100%; max-width: 360px; margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vh, 30px); }
 .fk-linse {
-  --d: min(62vw, 33vh, 290px);
+  --d: calc(min(62vw, 33vh, 290px) * var(--fk-linse-f, 1));
   width: var(--d); height: var(--d); flex: none; position: relative; border-radius: 50%;
   border: calc(var(--d) * .035) solid #fff; box-shadow: 0 12px 34px rgba(0,0,0,.3); overflow: hidden; background: #cfe3e3;
   animation: fkLinseRein .7s cubic-bezier(.2,.8,.3,1.1) both;
@@ -116,6 +121,13 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
 }
 .fk-link:hover { background: var(--haupt-zart, #eef6f6); transform: translateY(-1px); }
 .fk-link:active { transform: scale(.97); }
+/* L4-Startbild bei Ton aus (Klasse .fk-eng am Startbild, schirme.js): „Ton einschalten“ als Nebenknopf. Hochformat: unter dem
+   Ton-Hinweis, etwas schmaler als „Zum Menü“, Linse dafür etwas kleiner (sonst scrollt die Karte). Querformat (flach): neben
+   „Zum Menü“ in der Knopfreihe – eine Zeile mehr passt dort nicht. */
+.fk-tonein { max-width: 220px; margin: 8px auto 0; }
+.fk-tonein, .fk-links .fk-ton2 { display: none; }
+.fk-eng .fk-tonein { display: flex; }
+.fk-schirm.fk-eng { --fk-linse-f: .76; }
 
 /* Endbild: Punkte in der Linse, Ring als Anteil von 1.000 */
 .fk-punkte { background: var(--haupt); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
@@ -141,13 +153,14 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
 /* Hohe Bildschirme: luftig */
 @media (min-height: 760px) and (orientation: portrait) {
   .fk-schirm { padding-top: calc(76px + env(safe-area-inset-top)); }
-  .fk-linse { --d: min(66vw, 34vh, 310px); }
+  .fk-linse { --d: calc(min(66vw, 34vh, 310px) * var(--fk-linse-f, 1)); }
 }
 /* Kleine Hochformate (z. B. 320×640): Linse etwas kleiner, damit auch lange Anleitungen (L3, L4 mit Ton-Hinweis) ohne
    Scrollen passen */
 @media (orientation: portrait) and (max-height: 700px) {
-  .fk-linse { --d: min(58vw, 27vh, 260px); }
+  .fk-linse { --d: calc(min(58vw, 27vh, 260px) * var(--fk-linse-f, 1)); }
   .fk-buehne { gap: clamp(10px, 2vh, 18px); }
+  .fk-schirm.fk-eng { --fk-linse-f: .7; }
 }
 /* Flache Bildschirme (quer): Linse links, Karte rechts */
 @media (orientation: landscape) and (max-height: 620px) {
@@ -165,6 +178,9 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
   .fk-knopf { padding: 10px 16px; font-size: 15.5px; }
   .fk-links { margin-top: 8px; }
   .fk-link { min-height: 42px; font-size: 14.5px; }
+  .fk-eng .fk-tonein { display: none; }
+  .fk-eng .fk-links .fk-ton2 { display: inline-flex; }
+  #fkStart.fk-eng .fk-links { max-width: 310px; }
 }
 @media (orientation: landscape) and (max-height: 380px) {
   .fk-schirm { padding-top: calc(46px + env(safe-area-inset-top)); }
@@ -269,30 +285,42 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
 #fkAnsage.puls { animation: fkAnsagePuls .6s ease 1; }
 @keyframes fkAnsagePuls { 0%, 100% { transform: translateX(-50%) scale(1); } 40% { transform: translateX(-50%) scale(1.14); box-shadow: 0 0 0 6px rgba(255,255,255,.55), 0 6px 18px rgba(0,0,0,.25); } }
 @keyframes fkZusatz { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.8); } 15%, 75% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); } }
-#fkBrille {
+/* Level 5 „Weitblick“: Fokusring unten (MZ, 26.10.2026, Variante A) – dunkler Ring mit weißer Skala wie die Linse der
+   Startseite. Man dreht ihn durch Ziehen links/rechts (Maus und Finger); gezeichnet wird er in spiel-weitblick.js. */
+#fkRing {
   position: fixed; z-index: 6; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  display: flex; gap: 4px; padding: 4px; border-radius: 30px; background: rgba(10, 50, 52, .55);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  width: min(calc(100vw - 28px), 440px); height: 58px; border-radius: 16px; touch-action: none; cursor: grab;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.08); -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent; outline: none;
 }
-#fkBrille[hidden] { display: none; }
-#fkBrille button {
-  display: inline-flex; align-items: center; gap: 7px; height: 46px; padding: 0 16px 0 12px; border: 0; border-radius: 24px;
-  background: transparent; color: #fff; font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; touch-action: manipulation;
-  transition: background .2s, color .2s, transform .15s;
+#fkRing[hidden] { display: none; }
+#fkRing.zieht { cursor: grabbing; }
+#fkRing canvas { display: block; width: 100%; height: 100%; border-radius: inherit; }
+#fkRing:focus-visible { box-shadow: 0 0 0 3px #fff, 0 8px 22px rgba(0,0,0,.35); }
+/* Hinweis „am Fokusring ziehen“ (MZ, 26.10.2026): kleiner Doppelpfeil ‹ › mit Fingerpunkt über dem Ring, nur beim ersten Ziel,
+   bis man zieht. Lage setzt spiel-weitblick.js (Mitte über dem Ring). Dezent wie die Kopfzeilen-Chips. */
+#fkRingHinweis {
+  position: fixed; z-index: 7; transform: translate(-50%, -100%); pointer-events: none;
+  padding: 3px 9px; border-radius: 17px; background: rgba(10, 50, 52, .62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); animation: fkHinweisRein .45s ease both; transition: opacity .3s;
 }
-#fkBrille button svg { width: 34px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-#fkBrille button.an { background: #fff; color: var(--haupt-dunkel); }
-#fkBrille button:active { transform: scale(.95); }
-#fkBrille button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+#fkRingHinweis[hidden] { display: none; }
+#fkRingHinweis.weg { opacity: 0; }
+#fkRingHinweis svg { display: block; width: 76px; height: 30px; overflow: visible; }
+#fkRingHinweis .pfeil, #fkRingHinweis .bahn { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+#fkRingHinweis .bahn { stroke-width: 1.6; opacity: .45; stroke-dasharray: 2 4; }
+#fkRingHinweis .finger circle { fill: rgba(255,255,255,.28); stroke: #fff; stroke-width: 2; }
+#fkRingHinweis .finger .kern { fill: #fff; stroke: none; }
+#fkRingHinweis .finger { transform-box: fill-box; }
+@keyframes fkHinweisRein { from { opacity: 0; transform: translate(-50%, -100%) translateY(6px); } }
 @media (min-width: 700px) { #fkAnsage { top: calc(48px + env(safe-area-inset-top)); } }
 @media (max-width: 360px) {
   #fkAnsage { font-size: 14.5px; height: 38px; }
-  #fkBrille button { padding: 0 12px 0 9px; font-size: 13.5px; height: 42px; }
+  #fkRing { height: 54px; }
 }
 @media (orientation: landscape) and (max-height: 420px) {
   #fkAnsage { height: 34px; font-size: 14px; }
-  #fkBrille button { height: 38px; font-size: 13px; }
-  #fkBrille button svg { width: 28px; height: 18px; }
+  #fkRing { height: 46px; width: min(56vw, 420px); bottom: calc(6px + env(safe-area-inset-bottom)); }
 }
 /* Querformat und große Bildschirme: Ansage-Band deutlich größer, an die Fensterhöhe gekoppelt (MZ, 26.10.2026; L2–L5).
    Handy hoch bleibt wie oben. Bei 812×375 etwa wie bisher, bei 1280×720 ca. 24px Schrift, ab 1080 hoch 30px. */
@@ -300,11 +328,12 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
   #fkAnsage { font-size: clamp(14px, 3.4vh, 30px); height: 2.55em; padding: 0 1em 0 .75em; gap: .55em; border-radius: 1.3em; }
   #fkAnsage.klein { font-size: clamp(13.5px, 2.9vh, 26px); height: 2.4em; padding: 0 .95em 0 .75em; gap: .5em; }
 }
+@media (orientation: landscape) and (min-height: 421px) { #fkRing { height: clamp(52px, 8vh, 72px); width: min(50vw, 560px); } }
 @media (orientation: portrait) and (min-width: 700px) {
   #fkAnsage { font-size: clamp(16px, 2.3vh, 26px); height: 2.6em; padding: 0 1em 0 .75em; gap: .55em; border-radius: 1.3em; }
   #fkAnsage.klein { font-size: clamp(13.5px, 2vh, 22px); height: 2.4em; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #fkAnsage, #fkZusatz { animation-duration: .01s !important; }
+  #fkAnsage, #fkZusatz, #fkRingHinweis { animation-duration: .01s !important; }
   #fkZusatz.neu, #fkAnsage.puls { animation: none !important; }   /* nur einblenden, kein Puls */
 }

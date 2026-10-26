@@ -237,8 +237,8 @@ window.FOKUS_TEXTE = {
  "4": {
   "titel": "Level 4 – Rauschen",
   "anleitungen": [
-   "Tippe irgendwo, sobald du das gesuchte Geräusch hörst. Bei den ersten Zielen wird es erst vorgespielt – drei Fehler, und das Level endet.",
-   "Tippe irgendwo, sobald das angesagte Geräusch erklingt. Anfangs hörst du es vorab. Falsch, zu früh oder verpasst: ein Fehler, bei drei ist Schluss."
+   "Tippe irgendwo, sobald du das gesuchte Geräusch hörst. Beim ersten Ziel wird es vorher vorgespielt – drei Fehler, und das Level endet.",
+   "Tippe irgendwo, sobald das angesagte Geräusch erklingt. Beim ersten Ziel hörst du es vorab. Falsch, zu früh oder verpasst: ein Fehler, bei drei ist Schluss."
   ],
   "rueckmeldung": {
    "stark": [
@@ -305,7 +305,7 @@ window.FOKUS_TEXTE = {
    "Ohne geschafftes Level gibt es keine Punkte."
   ],
   "tonHinweise": [
-   "Am besten mit Ton spielen",
+   "Dieses Level braucht Ton",
    "Dieses Level lebt vom Ton – am besten mit Ton spielen",
    "Ton an, Kopfhörer helfen"
   ]
@@ -313,8 +313,8 @@ window.FOKUS_TEXTE = {
  "5": {
   "titel": "Level 5 – Weitblick",
   "anleitungen": [
-   "Hör hin, was gesucht ist: Nah sieht man mit der Lesebrille, fern mit der Fernbrille. Tippe das Ziel – drei Fehler, und das Level endet.",
-   "Das Ziel wird als Geräusch angesagt. Nah brauchst du die Lesebrille, fern die Fernbrille – bei drei Fehlern ist Schluss."
+   "Nah oder fern? Zieh am Fokusring, bis das angesagte Ziel scharf ist, dann tippen – drei Fehler, und das Level endet.",
+   "Das Ziel wird als Geräusch angesagt. Zieh am Fokusring, bis es scharf ist, und tippe es an – bei drei Fehlern ist Schluss."
   ],
   "rueckmeldung": {
    "stark": [
@@ -333,9 +333,10 @@ window.FOKUS_TEXTE = {
    ],
    "falsch": [
     "Falsches Ziel",
-    "Falsch gelesen",
-    "Falsche Brille",
     "Daneben"
+   ],
+   "unscharf": [
+    "Erst scharfstellen"
    ],
    "verpasst": [
     "Zu spät",
