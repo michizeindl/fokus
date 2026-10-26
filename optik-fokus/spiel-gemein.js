@@ -506,7 +506,14 @@
 
   // ---------- Effekte (daten.js klang.effekte) ----------
   const effektPuffer = {};
-  Object.entries((D.klang || {}).effekte || {}).forEach(([name, e]) => { ladePuffer(e.datei).then(b => { effektPuffer[name] = b || false; }); });
+  // erst laden, wenn die Linse im Startbild steht (spiel.js) bzw. spätestens nach 3s oder beim Levelstart – vorher würden die
+  // kleinen Dateien das Level-Bild bremsen (MZ, 26.10.2026: Linse lädt spät); bis dahin gilt der erzeugte Ersatzton
+  let effekteGeladen = false;
+  function effekteLaden() {
+    if (effekteGeladen) return; effekteGeladen = true;
+    Object.entries((D.klang || {}).effekte || {}).forEach(([name, e]) => { ladePuffer(e.datei).then(b => { effektPuffer[name] = b || false; }); });
+  }
+  setTimeout(effekteLaden, 3000);
   // name: treffer, stark, fehler, abbruch, geschafft, bewertung, wusch, brille, klar; o: { pegel (Faktor), hoechstens, verzoegerung }
   function effekt(name, o) {
     o = o || {};
@@ -578,7 +585,7 @@
   addEventListener('pagehide', () => musikMerken(true));
 
   window.FOKUS_GEMEIN = { textLage, lerp, klemm, mischen, punkteNachZeit, effekte, ansage, platz, abbildung, ausweichen, verdeckt, LAUTSPRECHER,
-    ton: { an: tonAn, audio, klang, spielen, grundrauschen, artVon, effekt, musik, raum, vorladen, ladePuffer, latenz, hoerJetzt, bereit, takt, einsatzVon,
+    ton: { an: tonAn, audio, klang, spielen, grundrauschen, artVon, effekt, effekteLaden, musik, raum, vorladen, ladePuffer, latenz, hoerJetzt, bereit, takt, einsatzVon,
       get laeuft() { return !!ctx && ctx.state === 'running'; },
       // Testhilfe: was gerade klingt
       stand() { return { kontext: ctx ? ctx.state : 'keiner', musik: musikL ? { stelle: +musikStelle().toFixed(2) } : null, musikSoll,

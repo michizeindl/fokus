@@ -8,7 +8,7 @@ window.FOKUS_TEXTE = {
  "1": {
   "titel": "Level 1 – Schärfe",
   "anleitungen": [
-   "Die Motive ziehen unscharf vorbei. Tippe irgendwo, sobald das markierte Motiv ganz scharf ist – drei Fehler, und das Level endet.",
+   "Die Motive ziehen unscharf vorbei. Tippe irgendwo, sobald das markierte Motiv ganz scharf ist. Drei Fehler und das Level endet für dich ohne Punkte.",
    "Tippe irgendwo auf den Bildschirm, wenn das Motiv am schärfsten ist. Zu früh, daneben oder verpasst: ein Fehler, bei drei ist Schluss."
   ],
   "rueckmeldung": {
@@ -18,8 +18,9 @@ window.FOKUS_TEXTE = {
     "Volltreffer"
    ],
    "knapp": [
-    "Fast scharf",
-    "Gerade so",
+    "Gerade noch"
+   ],
+   "schwach": [
     "Naja"
    ],
    "frueh": [
@@ -69,7 +70,7 @@ window.FOKUS_TEXTE = {
  "2": {
   "titel": "Level 2 – Richtung",
   "anleitungen": [
-   "Eine Richtung wird angesagt. Warte auf den passenden Ring und tippe nur Ringe mit dieser Öffnung – drei Fehler, und das Level endet.",
+   "Eine Richtung wird angesagt. Warte auf den passenden Ring und tippe nur Ringe mit dieser Öffnung. Drei Fehler und du hast verloren.",
    "Warte auf den passenden Ring. Tippe den Ring mit der angesagten Öffnung. Falscher oder verpasster Ring: ein Fehler, bei drei ist Schluss."
   ],
   "rueckmeldung": {
@@ -79,9 +80,10 @@ window.FOKUS_TEXTE = {
     "Richtig"
    ],
    "knapp": [
-    "Gerade noch",
-    "Naja",
-    "Fast verpasst"
+    "Gerade noch"
+   ],
+   "schwach": [
+    "Naja"
    ],
    "frueh": [
     "Noch nicht",
@@ -176,7 +178,7 @@ window.FOKUS_TEXTE = {
  "3": {
   "titel": "Level 3 – Spiegelung",
   "anleitungen": [
-   "Spiegelungen verdecken die Fische. Tippe auf das richtige Ziel im See, sobald der Filter klar ist – drei Fehler, und das Level endet. Die Scheibe unten zeigt, wann der Filter klar ist.",
+   "Spiegelungen verdecken die Fische. Tippe auf das richtige Ziel im See, sobald der Filter klar ist. Drei Fehler und vorbei. Die Scheibe unten zeigt, wann der Filter klar ist.",
    "Tippe das angesagte Ziel, sobald der Filter klar ist. Die Scheibe unten ist kein Knopf – sie zeigt, wann der Filter klar ist. Zu früh, falsch oder verpasst: ein Fehler, bei drei ist Schluss."
   ],
   "rueckmeldung": {
@@ -186,8 +188,9 @@ window.FOKUS_TEXTE = {
     "Gefunden"
    ],
    "knapp": [
-    "Fast klar",
-    "Gerade so",
+    "Gerade noch"
+   ],
+   "schwach": [
     "Naja"
    ],
    "frueh": [
@@ -237,7 +240,7 @@ window.FOKUS_TEXTE = {
  "4": {
   "titel": "Level 4 – Rauschen",
   "anleitungen": [
-   "Tippe irgendwo, sobald du das gesuchte Geräusch hörst. Beim ersten Ziel wird es vorher vorgespielt – drei Fehler, und das Level endet.",
+   "Tippe irgendwo, sobald du das gesuchte Geräusch hörst. Beim ersten Ziel wird es vorher vorgespielt. Drei Fehler und das Level endet.",
    "Tippe irgendwo, sobald das angesagte Geräusch erklingt. Beim ersten Ziel hörst du es vorab. Falsch, zu früh oder verpasst: ein Fehler, bei drei ist Schluss."
   ],
   "rueckmeldung": {
@@ -247,8 +250,9 @@ window.FOKUS_TEXTE = {
     "Gefunden"
    ],
    "knapp": [
-    "Fast",
-    "Gerade noch",
+    "Gerade noch"
+   ],
+   "schwach": [
     "Naja"
    ],
    "frueh": [
@@ -313,7 +317,7 @@ window.FOKUS_TEXTE = {
  "5": {
   "titel": "Level 5 – Weitblick",
   "anleitungen": [
-   "Nah oder fern? Zieh am Fokusring, bis das angesagte Ziel scharf ist, dann tippen – drei Fehler, und das Level endet.",
+   "Zieh am Fokusring, bis das angesagte Ziel scharf ist. Dann tippen. Tempo zählt, Schärfe auch. Drei Fehler und du bist raus.",
    "Das Ziel wird als Geräusch angesagt. Zieh am Fokusring, bis es scharf ist, und tippe es an – bei drei Fehlern ist Schluss."
   ],
   "rueckmeldung": {
@@ -323,9 +327,13 @@ window.FOKUS_TEXTE = {
     "Richtig"
    ],
    "knapp": [
-    "Gerade noch",
-    "Naja",
-    "Fast zu spät"
+    "Gerade noch"
+   ],
+   "schwach": [
+    "Naja"
+   ],
+   "perfekt": [
+    "Gestochen scharf"
    ],
    "frueh": [
     "Zu früh",

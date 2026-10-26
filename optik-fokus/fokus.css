@@ -61,10 +61,17 @@ html, body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Robot
   -webkit-overflow-scrolling: touch;
 }
 .fk-schirm[hidden] { display: none; }
+/* ruhiger Grund in Kundenfarbe, solange das Level-Bild lädt (liegt unter dem Hintergrundbild) */
+.fk-schirm { background: linear-gradient(var(--haupt-dunkel, #0b5a5d), var(--haupt-tief, #084345)); }
 .fk-schirm .fk-hg {
   position: fixed; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); z-index: -1;
   filter: blur(9px) saturate(1.05); transform: scale(1.04);
+  transition: opacity .45s ease;
 }
+/* Spätes Laden (MZ, 26.10.2026): bis Level-Bild und Linsen-Motiv fertig sind, bleiben Hintergrund und Linse unsichtbar
+   (die Linse behält ihren Platz); danach blendet der Hintergrund weich ein und die Linse kommt wie gewohnt herein */
+.fk-schirm.fk-laedt .fk-hg { opacity: 0; transition: none; }
+.fk-schirm.fk-laedt .fk-linse:not(.fk-punkte) { animation: none; opacity: 0; }
 .fk-schirm::before { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(255,255,255,.08), rgba(0,0,0,.12)); }
 .fk-buehne { width: 100%; max-width: 360px; margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vh, 30px); }
 .fk-linse {

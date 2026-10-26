@@ -49,24 +49,7 @@
 
   // Lage des sichtbaren Motivs im Bild (Alpha): oben/unten/links/rechts als Anteil, unten = Fußpunkt; fuss = Breite der
   // untersten Zeilen (Kontaktschatten unter Rädern/Füßen). Einmal je Bild.
-  const lagen = {};
-  function lage(img) {
-    const k = img.src;
-    if (lagen[k]) return lagen[k];
-    const n = 96, s = n / Math.max(img.naturalWidth, img.naturalHeight), cw = Math.max(2, Math.round(img.naturalWidth * s)), ch = Math.max(2, Math.round(img.naturalHeight * s));
-    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
-    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, cw, ch);
-    let d;
-    try { d = g.getImageData(0, 0, cw, ch).data; } catch (e) { return (lagen[k] = { oben: 0, unten: 1, links: 0, rechts: 1, fl: 0.3, fr: 0.7 }); }
-    let o = ch, u = -1, l = cw, r = -1;
-    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (d[(y * cw + x) * 4 + 3] > 60) { if (y < o) o = y; if (y > u) u = y; if (x < l) l = x; if (x > r) r = x; }
-    if (u < 0) return (lagen[k] = { oben: 0, unten: 1, links: 0, rechts: 1, fl: 0.3, fr: 0.7 });
-    let fl = cw, fr = -1;
-    const ab = Math.max(1, Math.round((u - o + 1) * 0.05));
-    for (let y = u - ab; y <= u; y++) for (let x = 0; x < cw; x++) if (d[(y * cw + x) * 4 + 3] > 100) { if (x < fl) fl = x; if (x > fr) fr = x; }
-    if (fr < 0) { fl = l; fr = r; }
-    return (lagen[k] = { oben: o / ch, unten: (u + 1) / ch, links: l / cw, rechts: (r + 1) / cw, fl: fl / cw, fr: (fr + 1) / cw });
-  }
+  const lage = img => SZ.lage(img);   // gemeinsam mit der Startbild-Linse (szene.js)
   // Platzhalter-Kärtchen für Motive ohne Bild (neue Ziele, bis der Graphic Artist liefert)
   function platzhalter(m, hCss, pad, dpr) {
     const sv = m.entfernung === 'fern' ? 0.55 : 1.25, w = hCss * sv, h = hCss;
@@ -134,9 +117,12 @@
   }
   // Ring zeichnen: f = eingestellte Tiefe (0–1). Skala und Griffrillen laufen mit dem Finger (Zylinder in Aufsicht),
   // Marke in der Mitte bleibt stehen. Ziehen nach rechts = fern (zum Häuser-Symbol), nach links = nah (zur Tasse).
+  // Rückgabe false = nicht gezeichnet (Ring zu schmal oder unsichtbar, z. B. verstecktes iframe mit Breite 0) –
+  // dann zeichnet ringZeichnen beim nächsten Bild erneut, sobald die Breite da ist.
   function ringMalen(f) {
     const r = $r.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    const w = Math.round(r.width), h = Math.round(r.height);
+    if (w < 4 || h < 4 || w < 2 * Math.min(46, h * 0.95) + 20) return false;
     if ($rc.width !== Math.round(w * dpr) || $rc.height !== Math.round(h * dpr)) { $rc.width = Math.round(w * dpr); $rc.height = Math.round(h * dpr); }
     const g = $rc.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
     const ende = Math.min(46, h * 0.95), x0 = ende, x1 = w - ende, cx = w / 2, R = (x1 - x0) / 2;
@@ -168,8 +154,9 @@
     }
     // Zylinder-Schatten an den Seiten
     v = g.createLinearGradient(0, 0, w, 0);
-    v.addColorStop(0, 'rgba(0,0,0,.92)'); v.addColorStop(ende / w, 'rgba(0,0,0,.72)'); v.addColorStop(0.5 - (0.5 - ende / w) * 0.45, 'rgba(0,0,0,0)');
-    v.addColorStop(0.5 + (0.5 - ende / w) * 0.45, 'rgba(0,0,0,0)'); v.addColorStop(1 - ende / w, 'rgba(0,0,0,.72)'); v.addColorStop(1, 'rgba(0,0,0,.92)');
+    const e = klemm(ende / w, 0, 0.5), st = (p, c) => v.addColorStop(klemm(p, 0, 1), c);
+    st(0, 'rgba(0,0,0,.92)'); st(e, 'rgba(0,0,0,.72)'); st(0.5 - (0.5 - e) * 0.45, 'rgba(0,0,0,0)');
+    st(0.5 + (0.5 - e) * 0.45, 'rgba(0,0,0,0)'); st(1 - e, 'rgba(0,0,0,.72)'); st(1, 'rgba(0,0,0,.92)');
     g.fillStyle = v; g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(0, 0, w, 1.2);
     // Marke in der Mitte (fest)
@@ -180,6 +167,7 @@
     symbolNah(g, ende * 0.52, h * 0.42, s, f > 0.02 ? 0.95 : 0.4);
     symbolFern(g, w - ende * 0.52, h * 0.42, s, f < 0.98 ? 0.95 : 0.4);
     $r.setAttribute('aria-valuenow', Math.round(f * 100));
+    return true;
   }
 
   const WARTEN = 2.5;   // höchstens so lange wartet die Ansage, bis ihr Geräusch wirklich erklingen kann
@@ -230,7 +218,7 @@
     // ---------- Fokusring: Bedienung ----------
     let zug = null;
     const spielt = () => phase !== 'aus' && !$r.hidden;
-    const pxJeEinheit = () => { const r = $r.getBoundingClientRect(), ende = Math.min(46, r.height * 0.95); return (r.width - 2 * ende) / 2 * (W.ringWeg || 2.6); };
+    const pxJeEinheit = () => { const r = $r.getBoundingClientRect(), ende = Math.min(46, r.height * 0.95); return Math.max(40, (r.width - 2 * ende) / 2 * (W.ringWeg || 2.6)); };   // nie 0/negativ (Ring bei Breite 0 unsichtbar)
     function fokusSetzen(f) { fokusZiel = klemm(f, 0, 1); }
     $r.addEventListener('pointerdown', e => {
       if (!spielt()) return;
@@ -285,6 +273,8 @@
         flach: yS => klemm((by(yS) - hz) / fBr, 0.05, 0.55),
         aufTisch: (xS, yS) => yS >= sy(kante(bx(xS))),
         sperre: (x0, y0, x1, y1) => (Z.sperren || []).some(s => x1 > sx(s[0]) && x0 < sx(s[2]) && y1 > sy(s[1]) && y0 < sy(s[3])),
+        // Standfläche (Bild-Anteile x0–x1 auf Höhe yf) in einer Fuß-Sperrzone [x0, y0, x1, y1]?
+        fussSperre: (x0, x1, yf) => (Z.fussSperren || []).some(s => x1 > s[0] && x0 < s[2] && yf > s[1] && yf < s[3]),
       };
     }
 
@@ -369,6 +359,9 @@
           if (o.ys > geo.sy(geo.kante(xf)) - 5) return false;
           if (o.ys < geo.sy(geo.hinten(xf))) return false;
         }
+        // Füße nie auf oder knapp vor Stufen, Sockeln, Pfosten-Füßen (Zonen fussSperren) – sonst wirkt das Ding schwebend
+        const a = o.ana, f0 = o.x + a.fl * o.w, f1 = o.x + a.fr * o.w;
+        if (geo.fussSperre(geo.bx(f0), geo.bx(f1), geo.by(o.ys))) return false;
       } else {
         // liegt ganz auf der Tischplatte: vorderer Rand und der hintere Rand der Auflagefläche (Schatten) auf dem Tisch
         const tief = Math.max(4, o.hv * 0.32);
@@ -409,6 +402,14 @@
         const g = b.c.getContext('2d'); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop';
         g.fillStyle = `rgba(214,222,230,${W.dunst})`; g.fillRect(0, 0, b.c.width, b.c.height); g.restore();
       }
+      // gewölbte Unterkante (standKontur): Kante leicht abgedunkelt – der Sockel sitzt im Pflaster statt darüber
+      const kp = konturVon(o);
+      if (kp && o.img) {
+        const g = b.c.getContext('2d'); g.save(); g.setTransform(d, 0, 0, d, 0, 0); g.globalCompositeOperation = 'source-atop';
+        const r = Math.max(1.5, o.hv * 0.04);
+        SZ.kette(g, kp.map(p => [b.pad + p[0] * o.w, b.pad + p[1] * o.h]), r * 1.4, r, 0.42, 0.2);
+        g.restore();
+      }
       o.bild = b; o.st = SZ.stufen(b.c, bm * d, 8);
       o.tiefe = geo.tiefeVon(o.fern, o.ys);
       o.schatten = schatten(o, d, bm);
@@ -417,16 +418,22 @@
     }
     function schatten(o, d, bm) {
       const fl = geo.flach(o.ys), a = o.ana;
+      // gewölbte Unterkante (daten.js standKontur, z. B. Hahn auf rundem Sockel): Punkte der Kante relativ zum Fußpunkt
+      const kp = konturVon(o), kr = kp ? kp.map(p => [o.x + p[0] * o.w - o.xs, (p[1] - a.unten) * o.h]) : null;
+      const hebt = kr ? Math.max(0, -Math.min(...kr.map(p => p[1]))) : 0;
+      const kb = kr ? Math.max(...kr.map(p => p[0])) - Math.min(...kr.map(p => p[0])) : 0;
       // fern: Standfläche mindestens 60 % der Breite (Füße, Räder, Pfosten-Fuß – sonst nur ein Strich unter dem tiefsten Punkt)
-      const breit = o.fern ? Math.max(8, (a.fr - a.fl) * o.w * 1.15, o.box.w * 0.6) : Math.max(8, o.box.w * 1.02);
+      const breit = o.fern ? Math.max(8, (a.fr - a.fl) * o.w * 1.15, o.box.w * 0.6, kb * 1.08) : Math.max(8, o.box.w * 1.02);
       const hoch = o.fern ? Math.max(5, breit * fl * 1.1) : Math.max(4, Math.min(o.hv * 0.6, breit * fl * 1.4 + o.hv * 0.12));
-      const pad = Math.ceil(bm + Math.max(4, breit * 0.12)) + 2;
+      const pad0 = Math.ceil(bm + Math.max(4, breit * 0.12)) + 2;
       // ferne Dinge: zusätzlich ein weicher Schlagschatten nach rechts hinten (Licht von links oben wie im Platz-Bild)
       const wurf = o.fern ? Math.max(4, o.box.w * 0.45 + o.hv * 0.18) : 0;
-      const cw = breit + wurf + pad * 2, ch = hoch + pad * 2;
+      const cw = breit + wurf + pad0 * 2, ch = hoch + pad0 * 2 + hebt;
       const c = document.createElement('canvas'); c.width = Math.ceil(cw * d); c.height = Math.ceil(ch * d);
       const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
-      const mx = pad + breit / 2, my = pad + hoch / 2;
+      const pad = pad0 + hebt;   // y: Platz nach oben für die ansteigende Kante (x bleibt bei pad0)
+      const mx = pad0 + breit / 2;
+      if (kr) return konturSchatten(o, d, bm, { c, g, kr, mx, pad, pad0, breit, hoch, wurf, cw, ch, fl });
       const weichPx = Math.max(1.5, breit * (o.fern ? 0.06 : 0.05));
       if (typeof g.filter === 'string') g.filter = `blur(${weichPx.toFixed(1)}px)`;
       if (!o.fern && o.img) {
@@ -448,9 +455,40 @@
       }
       v.addColorStop(0, `rgba(0,0,0,${o.fern ? 0.62 : 0.5})`); v.addColorStop(0.5, `rgba(0,0,0,${o.fern ? 0.34 : 0.26})`); v.addColorStop(1, 'rgba(0,0,0,0)');
       g.save(); g.translate(mx, pad + hoch * (o.fern ? 0.5 : 0.78)); g.scale(breit / 2, Math.max(1.5, (o.fern ? hoch : hoch * 0.4) / 2)); g.fillStyle = v; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+      if (o.fern) {
+        // Ansatz direkt unter Füßen/Rädern (MZ, 26.10.2026: Fußball-Fan „leicht in der Luft“): dunkler, kompakter Kern genau
+        // an der Standfläche, wie der Beginn eines Schlagschattens – der weiche Hof darum bleibt
+        const fb = Math.max(5, (a.fr - a.fl) * o.w), fh = Math.max(2.2, Math.min(hoch * 0.45, fb * fl * 0.9));
+        const dx = o.x + (a.fl + a.fr) / 2 * o.w - o.xs, v3 = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+        v3.addColorStop(0, 'rgba(0,0,0,.8)'); v3.addColorStop(0.55, 'rgba(0,0,0,.5)'); v3.addColorStop(1, 'rgba(0,0,0,0)');
+        g.save(); g.translate(mx + dx, pad + hoch * 0.5 - fh * 0.12); g.scale(fb / 2, fh / 2); g.fillStyle = v3; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+      }
       // Fußpunkt (Bildschirm) liegt bei: fern Mitte der Ellipse, nah im unteren Viertel
       const fussY = o.fern ? pad + hoch * 0.5 : pad + hoch * 0.78;
       return { c, st: SZ.stufen(c, bm * d, 4), x: o.xs - mx + (o.fern ? 0 : o.box.w * 0.03), y: o.ys - fussY + (o.fern ? 0 : 1), w: cw, h: ch };
+    }
+
+    // Motiv mit gewölbter Unterkante (standKontur) → Punkte der Kante [fx, fy] (Bild-Anteile), sonst null
+    function konturVon(o) {
+      const ab = o.fern && o.img && W.standKontur && W.standKontur[o.m.name];
+      return ab ? SZ.kontur(o.img, ab) : null;
+    }
+    // Kontaktschatten entlang der ganzen Unterkante: weicher Hof und Schlagschatten mit der Neigung der Kante, dunkler Kern
+    // als Kette direkt an der Kante (statt eines Flecks unter dem tiefsten Punkt)
+    function konturSchatten(o, d, bm, s) {
+      const { c, g, mx, pad, breit, hoch, wurf, cw, ch } = s, fy = pad + hoch * 0.5;   // Fußpunkt in der Leinwand
+      const pts = s.kr.map(p => [mx + p[0], fy + p[1]]), gr = SZ.gerade(pts);
+      const fleck = (cx, cy, rx, ry, w, stopps) => {
+        const v = g.createRadialGradient(0, 0, 0, 0, 0, 1); stopps.forEach(([t, al]) => v.addColorStop(t, `rgba(0,0,0,${al})`));
+        g.save(); g.translate(cx, cy); g.rotate(w); g.scale(Math.max(1, rx), Math.max(1, ry)); g.fillStyle = v; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+      };
+      // Schlagschatten nach rechts hinten, Hof unter der ganzen Standfläche – beide mit der Neigung der Kante
+      fleck(gr.x + wurf * 0.5, gr.y - hoch * 0.08, (breit + wurf) / 2, Math.max(2, hoch * 0.6), gr.winkel, [[0, 0.34], [0.6, 0.18], [1, 0]]);
+      fleck(gr.x, gr.y, breit / 2, Math.max(2, hoch * 0.55), gr.winkel, [[0, 0.6], [0.5, 0.32], [1, 0]]);
+      // dunkler Kern direkt an der Kante, etwas unter den Sockel gezogen (der obere Teil liegt hinter dem Motiv)
+      const fh = Math.max(2.4, hoch * 0.42);
+      SZ.kette(g, pts.map(p => [p[0], p[1] - fh * 0.1]), fh * 1.3, fh / 2, 0.55, 0.32);
+      return { c, st: SZ.stufen(c, bm * d, 4), x: o.xs - mx, y: o.ys - fy, w: cw, h: ch };
     }
 
     const belegtVon = ohne => dinge.filter(o => o !== ohne && !(o.weg > 0.4)).map(o => o.box);
@@ -487,6 +525,8 @@
       let kand = dinge.filter(o => !o.weg && !(zuletzt.length >= 2 && zuletzt.every(e => e === (o.fern ? 'fern' : 'nah'))));
       if (!kand.length) kand = dinge.filter(o => !o.weg);
       if (!kand.length) { fuellen(k); kand = dinge.filter(o => !o.weg); }
+      // Spielfläche (noch) ohne Größe (verstecktes iframe, Breite 0): kein Platz für Dinge – warten statt Level beenden
+      if (!kand.length && (B < 50 || H < 50)) { phase = 'start'; uhr = 0.25; return; }
       if (!kand.length) { aus = true; api.fertig(); return; }
       const weit = kand.filter(o => Math.abs(o.tiefe - fokusZiel) > tol * 2.2);
       const wahl = (weit.length ? weit : kand)[Math.floor(Math.random() * (weit.length ? weit : kand).length)];
@@ -523,12 +563,20 @@
     function ergebnis(art, o, grund) {
       const e = { ziel: ziel.k + 1, art, d: 0, name: ziel.m.name };
       if (grund) e.grund = grund;
-      if (art === 'treffer') { const rt = Math.max(0, seitAnsage()); e.reaktion = rt; e.punkte = G.punkteNachZeit(rt, ziel.voll, ziel.zeit, R); }
+      if (art === 'treffer') {
+        // Tempo (bis 90) + Schärfe (bis 10): Schärfe aus dem Abstand des Rings zur Tiefe des Ziels (Mitte = 10, Toleranzrand = 0)
+        const rt = Math.max(0, seitAnsage()), q0 = o || ziel.o;
+        const tempoP = G.punkteNachZeit(rt, ziel.voll, ziel.zeit, { punkteMax: W.punkteTempo || 90, punkteMin: W.punkteTempoMin || 45 });
+        const genau = Math.round((W.punkteSchaerfe || 10) * klemm(1 - Math.abs(q0.tiefe - fokus) / Math.max(1e-6, toleranz()), 0, 1));
+        e.reaktion = rt; e.tempo = tempoP; e.genau = genau; e.punkte = Math.min(R.punkteMax, tempoP + genau);
+      }
       ziel.ergebnis = e;
       hinweisEnde();
       const q = o || ziel.o, cx = q.box.x + q.box.w / 2, cy = q.box.y + q.box.h / 2;
       let text;
       if (grund === 'unscharf') text = api.rueckmeldung('unscharf') || api.rueckmeldung('frueh');
+      // fast perfekte Schärfe: „Gestochen scharf“ (nur das Wort, keine Aufteilung Tempo/Schärfe – MZ: „sonst zu viel Info“)
+      else if (art === 'treffer' && e.genau >= (W.perfektAb || 9)) text = api.rueckmeldung('perfekt') || api.rueckmeldung(art, e.punkte);
       else text = api.rueckmeldung(art, e.punkte);
       fx.neu(art, cx, cy, Math.max(22, Math.max(q.box.w, q.box.h) * 0.6), text, art === 'treffer' ? '+' + e.punkte : '');
       if (tonGriff) { tonGriff.aus(0.15); tonGriff = null; }
@@ -538,7 +586,7 @@
     }
 
     // gezeichnet wird die Schärfe plus das Wackeln des Hinweises (das Wackeln ändert die Schärfe nicht)
-    function ringZeichnen() { const f = fokus + wackeln; if (!$r.hidden && Math.abs(f - ringStand) > 0.0004) { ringStand = f; ringMalen(f); } }
+    function ringZeichnen() { const f = fokus + wackeln; if (!$r.hidden && Math.abs(f - ringStand) > 0.0004) ringStand = ringMalen(f) ? f : -1; }
 
     return {
       groesse(b, h, d) {
@@ -624,7 +672,8 @@
         return true;
       },
       zeichne(g, b, h, laeuft) {
-        if (!scharf) return;
+        // Breite/Höhe 0 (verstecktes iframe): nichts zeichnen – drawImage mit leerer Leinwand würde die Bildschleife abbrechen
+        if (!scharf || !scharf.width || !scharf.height || !hgC || !hgC.width || !hgC.height) return;
         if (!dinge.length && !laeuft) { g.drawImage(scharf, 0, 0, B, H); return; }
         hgZusammen(fokus);
         g.drawImage(hgC, 0, 0, B, H);
@@ -695,19 +744,49 @@
     };
   };
 
-  // Startbild: ein fernes Ding scharf in der Linse (mit Schrift, wenn es ein großes Schild ist)
-  let linsenZiel = null, nachladen = false;
-  window.FOKUS_LINSE[5] = function (g, d, dpr) {
-    const S = window.FOKUS_SCHILDER;
-    const p = pool().filter(m => m.entfernung === 'fern' && m.bild);
-    if (!linsenZiel || !p.includes(linsenZiel)) linsenZiel = p[Math.floor(Math.random() * p.length)];
-    if (!linsenZiel) return;
-    const img = SZ.bild(linsenZiel.bild); if (!img) return;
-    const sv = img.naturalWidth / img.naturalHeight, h = Math.min(d * 0.5, d * 0.5 / Math.sqrt(sv) * 1.1), w = h * sv;
-    const x = (d / 2 - w / 2) * dpr, y = (d * 0.6 - h / 2) * dpr;
-    g.drawImage(SZ.motivBild(linsenZiel, h, 0, dpr).c, x, y, w * dpr, h * dpr);
-    if (S && S.hat(linsenZiel) && !S.bereit()) {
-      if (!nachladen) { nachladen = true; S.beiBereit(() => { nachladen = false; if (window.FOKUS_SCHIRME && window.FOKUS_SCHIRME.malen) window.FOKUS_SCHIRME.malen(); }); }
-    }
+  // Startbild: ein fernes Ding steht scharf auf dem Pflaster – Fußpunkt zwischen hinterster Fußlinie (vor Brunnen,
+  // Kübeln, Haltestelle) und Tischkante, Größe = echte Höhe × Maßstab an der Fußlinie (wie im Spiel), Kontakt- und
+  // Schlagschatten. Mit Schrift, wenn es ein großes Schild ist; schirme.js wartet auf Bild und Schriften (MZ, 26.10.2026).
+  // Ganz in der Linse mit Luft zum Rand (Umriss-Prüfung SZ.bodenWahl mit o.luft, MZ 27.10.2026).
+  const linieW = (pts, x) => {
+    if (!pts || !pts.length) return 0.6;
+    if (x <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) { const p = pts[i - 1], q = pts[i], u = (x - p[0]) / Math.max(1e-6, q[0] - p[0]); return p[1] + (q[1] - p[1]) * u; }
+    return pts[pts.length - 1][1];
+  };
+  // Auswahl nur aus daten.js level[4].linsenBuehne (MZ, 27.10.2026): Motive, die als Bild wirken, ganz in der Linse mit Rand.
+  const buehne = () => (D.level[4] && D.level[4].linsenBuehne) || {};
+  const formJetzt = () => (innerHeight > innerWidth ? 'hoch' : 'quer');
+  const passtNicht = { hoch: new Set(), quer: new Set() };   // beim Zeichnen festgestellt: passt in dieser Bildform nicht
+  // Fußpunkt in der Linse: unter der Linsenmitte zwischen Tischkante und hinterster Fußlinie, nächster Punkt mit Rand
+  function linsenLage(an, m) {
+    const Z = an.zonen, lb = buehne(), fx = an.fx, hi = linieW(Z.hinten, fx) + 0.006, ka = linieW(Z.tischkante, fx) - 0.012, punkte = [];
+    for (let i = 0; i <= 10; i++) { const yf = ka + (hi - ka) * i / 10; if (!(Z.fussSperren || []).some(s => fx > s[0] - 0.04 && fx < s[2] + 0.04 && yf > s[1] && yf < s[3])) punkte.push([fx, yf]); }   // von nah (Tischkante) nach fern, nicht an Stufen/Sockeln
+    if (!punkte.length) punkte.push([fx, ka]);
+    return SZ.bodenWahl(an, m, punkte, yf => an.meter(yf, Z.horizont, Z.kamera || 1.2), hoeheVon(m), { maxH: 0.6, luft: lb.luft || 0.09, luftUnten: lb.luftUnten });
+  }
+  window.FOKUS_LINSE[5] = {
+    kandidaten(form) {
+      const lb = buehne(), f = form || formJetzt(), ohne = ((lb[f] || {}).ohne) || [], namen = lb.motive || [];
+      return pool().filter(m => m.entfernung === 'fern' && m.bild && namen.includes(m.name) && !ohne.includes(m.name) && !passtNicht[f].has(m.name));
+    },
+    waehlen() { const p = this.kandidaten(); return { m: p[Math.floor(Math.random() * p.length)] || null }; },
+    lage: linsenLage,   // Testhilfe: FOKUS_LINSE[5].lage(FOKUS_SCHIRME.ansicht(5, d), motiv) → { passt, x, y, h }
+    bilder: w => (w && w.m ? [w.m.bild] : []),
+    warten(w) {
+      const S = window.FOKUS_SCHILDER;
+      if (!w || !w.m || !S || !S.hat(w.m) || S.bereit()) return null;
+      return new Promise(ok => S.beiBereit(ok));
+    },
+    malen(g, d, dpr, an, w) {
+      const m = w && w.m, Z = an.zonen;
+      if (!m || !SZ.bild(m.bild) || Z.horizont == null) return;
+      const p = linsenLage(an, m);
+      w.lage = p;   // Testhilfe
+      // passt nicht mit Rand: lieber nur der Platz als ein angeschnittenes oder verkleinertes Motiv; künftig übergangen
+      if (!p.passt) { passtNicht[an.form === 'hoch' ? 'hoch' : 'quer'].add(m.name); return; }
+      const fBr = (Z.tischHinten || 1.1) * (linieW(Z.tischkante, 0.5) - Z.horizont) / (Z.tischAuge || 0.45);   // Brennweite wie im Spiel
+      SZ.stehendMalen(g, m, p.x, p.y, p.h, dpr, { flach: Math.max(0.06, Math.min(0.4, (p.fy - Z.horizont) / fBr)), wurf: 0.45 });
+    },
   };
 })();

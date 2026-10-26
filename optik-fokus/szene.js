@@ -26,13 +26,110 @@
       i.onload = () => {
         try { if (umfaerben && window.Rahmen && window.Rahmen.umfaerben) b.img = window.Rahmen.umfaerben(i); } catch (e) { /* ohne Umfärben */ }
         b.bereit = true;
-        wartende.forEach(f => { try { f(adresse); } catch (e) { /* egal */ } });
+        wartende.slice().forEach(f => { try { f(adresse); } catch (e) { /* egal */ } });
       };
-      i.onerror = () => { b.fehler = true; };
+      // Fehler: Platzhalter bleibt – auch dann die Wartenden wecken (Startbild-Linse wartet sonst ewig)
+      i.onerror = () => { b.fehler = true; wartende.slice().forEach(f => { try { f(adresse); } catch (e) { /* egal */ } }); };
       i.src = adresse;
     }
     const b = bilder[schluessel];
     return b.bereit ? b.img : null;
+  }
+  // fertig = Bild da oder Laden gescheitert (dann zeichnet der Platzhalter) – kein Zwischenstand, der sich sichtbar nachbaut
+  function fertig(adresse, umfaerben) {
+    if (!adresse) return true;
+    bild(adresse, umfaerben);
+    const b = bilder[adresse + (umfaerben ? '#um' : '')];
+    return !!(b && (b.bereit || b.fehler));
+  }
+  // laden([[adresse, umfaerben], …]) → Promise, erfüllt, sobald alle fertig sind (geladen oder gescheitert)
+  function laden(liste) {
+    const offen = () => liste.filter(e => e && !fertig(e[0], e[1]));
+    if (!offen().length) return Promise.resolve(true);
+    return new Promise(ok => { const f = () => { if (!offen().length) { const i = wartende.indexOf(f); if (i >= 0) wartende.splice(i, 1); ok(true); } }; wartende.push(f); });
+  }
+  // Lage des sichtbaren Motivs im Bild (Alpha): oben/unten/links/rechts als Anteil, unten = Fußpunkt; fl/fr = Breite der
+  // untersten Zeilen (Kontaktschatten unter Rädern/Füßen). Einmal je Bild. (Level 5 und Startbild-Linse)
+  const lagen = {};
+  function lage(img) {
+    const k = img.src;
+    if (lagen[k]) return lagen[k];
+    const n = 96, s = n / Math.max(img.naturalWidth, img.naturalHeight), cw = Math.max(2, Math.round(img.naturalWidth * s)), ch = Math.max(2, Math.round(img.naturalHeight * s));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, cw, ch);
+    let d;
+    try { d = g.getImageData(0, 0, cw, ch).data; } catch (e) { return (lagen[k] = { oben: 0, unten: 1, links: 0, rechts: 1, fl: 0.3, fr: 0.7 }); }
+    let o = ch, u = -1, l = cw, r = -1;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (d[(y * cw + x) * 4 + 3] > 60) { if (y < o) o = y; if (y > u) u = y; if (x < l) l = x; if (x > r) r = x; }
+    if (u < 0) return (lagen[k] = { oben: 0, unten: 1, links: 0, rechts: 1, fl: 0.3, fr: 0.7 });
+    let fl = cw, fr = -1;
+    const ab = Math.max(1, Math.round((u - o + 1) * 0.05));
+    for (let y = u - ab; y <= u; y++) for (let x = 0; x < cw; x++) if (d[(y * cw + x) * 4 + 3] > 100) { if (x < fl) fl = x; if (x > fr) fr = x; }
+    if (fr < 0) { fl = l; fr = r; }
+    return (lagen[k] = { oben: o / ch, unten: (u + 1) / ch, links: l / cw, rechts: (r + 1) / cw, fl: fl / cw, fr: (fr + 1) / cw });
+  }
+  // Standfläche entlang der Unterkante (daten.js weitblick.standKontur, MZ 27.10.2026: Hahn auf rundem Sockel wirkte
+  // schwebend – die Unterkante ist gewölbt, der Schatten am tiefsten Punkt lag nur unter einer Ecke): je Spalte der unterste
+  // sichtbare Punkt, nur wo er höchstens `ab` (Anteil der Motivhöhe) über dem tiefsten Punkt liegt. Punkte [fx, fy] als
+  // Anteil des Bilds, von links nach rechts. Einmal je Bild.
+  const konturen = {};
+  function kontur(img, ab) {
+    const k = img.src + '|' + ab;
+    if (konturen[k]) return konturen[k];
+    const n = 96, s = n / Math.max(img.naturalWidth, img.naturalHeight), cw = Math.max(2, Math.round(img.naturalWidth * s)), ch = Math.max(2, Math.round(img.naturalHeight * s));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, cw, ch);
+    let d;
+    try { d = g.getImageData(0, 0, cw, ch).data; } catch (e) { return (konturen[k] = null); }
+    const a = lage(img), grenze = (a.unten - (a.unten - a.oben) * ab) * ch, pts = [];
+    for (let x = 0; x < cw; x++) {
+      let u = -1;
+      for (let y = ch - 1; y >= 0; y--) if (d[(y * cw + x) * 4 + 3] > 100) { u = y; break; }
+      if (u >= 0 && u + 1 >= grenze) pts.push([(x + 0.5) / cw, (u + 1) / ch]);
+    }
+    return (konturen[k] = pts.length >= 3 ? pts : null);
+  }
+  // Umriss des sichtbaren Motivs (MZ, 27.10.2026: L5-Linse – Motiv nie angeschnitten, mit Luft zum Rand): je Spalte der
+  // oberste und unterste, je Zeile der linkeste und rechteste sichtbare Punkt, als Anteil des Bilds. Einmal je Bild.
+  const umrisse = {};
+  function umriss(img) {
+    const k = img.src;
+    if (umrisse[k]) return umrisse[k];
+    const n = 96, s = n / Math.max(img.naturalWidth, img.naturalHeight), cw = Math.max(2, Math.round(img.naturalWidth * s)), ch = Math.max(2, Math.round(img.naturalHeight * s));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, cw, ch);
+    let d;
+    try { d = g.getImageData(0, 0, cw, ch).data; } catch (e) { return (umrisse[k] = null); }
+    const sicht = (x, y) => d[(y * cw + x) * 4 + 3] > 60, pts = [];
+    for (let x = 0; x < cw; x++) {
+      let o = -1, u = -1;
+      for (let y = 0; y < ch; y++) if (sicht(x, y)) { if (o < 0) o = y; u = y; }
+      if (o >= 0) { pts.push([(x + 0.5) / cw, o / ch]); pts.push([(x + 0.5) / cw, (u + 1) / ch]); }
+    }
+    for (let y = 0; y < ch; y++) {
+      let l = -1, r = -1;
+      for (let x = 0; x < cw; x++) if (sicht(x, y)) { if (l < 0) l = x; r = x; }
+      if (l >= 0) { pts.push([l / cw, (y + 0.5) / ch]); pts.push([(r + 1) / cw, (y + 0.5) / ch]); }
+    }
+    return (umrisse[k] = pts.length ? pts : null);
+  }
+  // Kontaktschatten entlang einer Linie (Punkte in Zeichen-Koordinaten): Kette weicher Flecken, Abstand ca. 0,6 × rx
+  function kette(g, pts, rx, ry, a0, a1) {
+    let vor = null;
+    for (const p of pts) {
+      if (vor && Math.hypot(p[0] - vor[0], p[1] - vor[1]) < rx * 0.6) continue;
+      const v = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+      v.addColorStop(0, `rgba(0,0,0,${a0})`); v.addColorStop(0.5, `rgba(0,0,0,${a1})`); v.addColorStop(1, 'rgba(0,0,0,0)');
+      g.save(); g.translate(p[0], p[1]); g.scale(Math.max(1, rx), Math.max(1, ry)); g.fillStyle = v; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+      vor = p;
+    }
+  }
+  // Ausgleichsgerade durch die Punkte: Schwerpunkt und Neigung (Bogenmaß)
+  function gerade(pts) {
+    const n = pts.length, mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
+    let sxx = 0, sxy = 0;
+    pts.forEach(p => { sxx += (p[0] - mx) * (p[0] - mx); sxy += (p[0] - mx) * (p[1] - my); });
+    return { x: mx, y: my, winkel: sxx > 0 ? Math.atan(sxy / sxx) : 0 };
   }
   const breite = i => i.naturalWidth || i.width, hoehe = i => i.naturalHeight || i.height;
   function cover(g, img, w, h, fx, fy) {
@@ -363,6 +460,99 @@
     return { c, w, h, pad };
   }
 
+  // ---------- Startbild-Linse: Motiv steht auf dem Boden (MZ, 26.10.2026: „Motive hängen in der Luft“) ----------
+  // Maße eines Motivs mit sichtbarer Höhe hPx (CSS-px), alles relativ zum Fußpunkt (Mitte unten des sichtbaren Motivs)
+  function stehendMass(m, hPx) {
+    const img = m && m.bild ? bild(m.bild) : null; if (!img) return null;
+    const a = lage(img), hb = hPx / Math.max(0.2, a.unten - a.oben), w = hb * breite(img) / hoehe(img), mitte = (a.links + a.rechts) / 2;
+    return { img, a, hb, w, mitte, links: (a.links - mitte) * w, rechts: (a.rechts - mitte) * w, oben: -(a.unten - a.oben) * hb };
+  }
+  // Kontaktschatten (dichter Kern unter Füßen/Rädern, weicher Hof) und Schlagschatten nach rechts hinten (Licht von links
+  // oben wie in den Level-Bildern), danach das Motiv. g in Gerätepixeln, x/y = Fußpunkt in CSS-px.
+  // o.flach = Abflachung des Bodens (Augenhöhe/Abstand), o.wurf = Länge Schlagschatten (Anteil der Breite), o.staerke
+  function stehendMalen(g, m, x, y, hPx, dpr, o) {
+    o = o || {};
+    const s = stehendMass(m, hPx); if (!s) return null;
+    const { a, hb, w } = s, left = x - s.mitte * w, top = y - a.unten * hb, sw = (a.rechts - a.links) * w;
+    const fuss = Math.max(4, (a.fr - a.fl) * w * 1.1, sw * 0.55), fx = left + (a.fl + a.fr) / 2 * w;
+    const hoch = Math.max(2.5, fuss * (o.flach || 0.2)), st = o.staerke || 1, wurf = o.wurf == null ? 0.35 : o.wurf;
+    g.save(); g.scale(dpr, dpr);
+    const fleck = (cx, cy, rx, ry, a0, a1) => {
+      const v = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+      v.addColorStop(0, `rgba(0,0,0,${a0})`); v.addColorStop(0.5, `rgba(0,0,0,${a1})`); v.addColorStop(1, 'rgba(0,0,0,0)');
+      g.save(); g.translate(cx, cy); g.scale(Math.max(1, rx), Math.max(1, ry)); g.fillStyle = v; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+    };
+    // gewölbte Unterkante (daten.js weitblick.standKontur, z. B. Hahn auf rundem Sockel): Schatten folgt der ganzen Kante
+    const ab = D.weitblick && D.weitblick.standKontur && D.weitblick.standKontur[m.name];
+    const kp = ab ? kontur(s.img, ab) : null;
+    if (kp) {
+      const pts = kp.map(p => [left + p[0] * w, top + p[1] * hb]), gr = gerade(pts);
+      const kb = Math.max(...pts.map(p => p[0])) - Math.min(...pts.map(p => p[0])), br = Math.max(fuss, kb * 1.08), ho = Math.max(2.5, br * (o.flach || 0.2));
+      const rund = (cx, cy, rx, ry, a0, a1) => { g.save(); g.translate(cx, cy); g.rotate(gr.winkel); fleck(0, 0, rx, ry, a0, a1); g.restore(); };
+      if (wurf > 0) { const ww = sw * wurf; rund(gr.x + ww * 0.5, gr.y - ho * 0.18, (br + ww) / 2, ho * 0.75, 0.3 * st, 0.16 * st); }
+      rund(gr.x, gr.y, br / 2, ho * 0.55, 0.62 * st, 0.34 * st);
+      const fh = Math.max(2, ho * 0.42);
+      kette(g, pts.map(p => [p[0], p[1] - fh * 0.1]), fh * 1.3, fh / 2, Math.min(0.8, 0.55 * st), Math.min(0.5, 0.32 * st));
+    } else {
+      if (wurf > 0) { const ww = sw * wurf; fleck(fx + ww * 0.5, y - hoch * 0.18, (fuss + ww) / 2, hoch * 0.75, 0.3 * st, 0.16 * st); }
+      fleck(fx, y, fuss / 2, hoch / 2, 0.62 * st, 0.34 * st);
+      // Ansatz direkt unter Füßen/Rädern: dunkler, kompakter Kern (wie in Weitblick)
+      const fb = Math.max(3, (a.fr - a.fl) * w);
+      fleck(fx, y - hoch * 0.06, fb / 2, Math.max(1.2, Math.min(hoch * 0.22, fb * (o.flach || 0.2) * 0.45)), Math.min(0.9, 0.78 * st), Math.min(0.6, 0.48 * st));
+    }
+    g.restore();
+    const mb = motivBild(m, hb, 0, dpr);   // Level 5: Schrift auf Schildern kommt mit
+    if (kp) {   // Kante leicht abgedunkelt – sitzt im Pflaster
+      const kg = mb.c.getContext('2d'); kg.save(); kg.setTransform(dpr, 0, 0, dpr, 0, 0); kg.globalCompositeOperation = 'source-atop';
+      const r = Math.max(1.2, hPx * 0.04);
+      kette(kg, kp.map(p => [p[0] * w, p[1] * hb]), r * 1.4, r, 0.42, 0.2);
+      kg.restore();
+    }
+    g.drawImage(mb.c, left * dpr, top * dpr, w * dpr, hb * dpr);
+    return { x, y, h: hPx, links: x + s.links, rechts: x + s.rechts, oben: y + s.oben };
+  }
+  // Fußpunkt wählen: punkte = Fußpunkte im Level-Bild (Anteile, von nah nach fern), meter(yf) = CSS-px je Meter an der
+  // Fußlinie, hm = echte Höhe in m. Nimmt den nächsten Punkt, an dem das Motiv samt Schatten ganz in der Linse liegt und
+  // höchstens o.maxH × Durchmesser hoch ist; passt es nirgends, steht es am fernsten Punkt und wird verkleinert.
+  // o.luft (Anteil des Durchmessers, z. B. 0,09): strenger – jeder Punkt des Umrisses (szene.umriss) hält diesen Abstand zum
+  // Linsenrand, nur Füße/Räder (unterste 10 % der Motivhöhe) und der Kontaktschatten dürfen bis o.luftUnten heran; passt
+  // es nirgends, kommt { passt: false } zurück (nichts verkleinert – das Motiv wird dann nicht gewählt).
+  function bodenWahl(ans, m, punkte, meter, hm, o) {
+    o = o || {};
+    const d = ans.d, r = d / 2 * (1 - (o.rand || 0.05)), maxH = (o.maxH || 0.55) * d;
+    const drin = (x, y) => (x - d / 2) * (x - d / 2) + (y - d / 2) * (y - d / 2) <= r * r;
+    const abst = (x, y) => d / 2 - Math.hypot(x - d / 2, y - d / 2);   // Abstand zum Linsenrand (innen positiv)
+    const passtStreng = (x, y, h) => {
+      const s = stehendMass(m, h), U = s && umriss(s.img); if (!U || h > maxH) return false;
+      const lo = o.luft * d, lu = (o.luftUnten == null ? 0.03 : o.luftUnten) * d, fussAb = s.a.unten - (s.a.unten - s.a.oben) * 0.1;
+      for (const [u, v] of U) {
+        const px = x + (u - s.mitte) * s.w, py = y + (v - s.a.unten) * s.hb;
+        if (abst(px, py) < (v >= fussAb ? lu : lo)) return false;
+      }
+      const fuss = Math.max(4, (s.a.fr - s.a.fl) * s.w * 1.1, (s.a.rechts - s.a.links) * s.w * 0.55), fx = x + ((s.a.fl + s.a.fr) / 2 - s.mitte) * s.w;
+      return abst(fx - fuss / 2, y) >= lu && abst(fx + fuss / 2, y) >= lu && abst(fx, y + Math.max(3, h * 0.04)) >= lu;
+    };
+    const passt = (x, y, h) => {
+      if (o.luft > 0) return passtStreng(x, y, h);
+      const s = stehendMass(m, h); if (!s || h > maxH) return false;
+      const sl = x + s.links, sr = x + s.rechts + (s.rechts - s.links) * 0.08, ob = y + s.oben, un = y + Math.max(3, h * 0.04);
+      return drin(sl, ob) && drin(sr, ob) && drin(sl, un) && drin(sr, un) && drin(x, un);
+    };
+    // Punkte fein unterteilen (zwischen zwei Stützpunkten linear)
+    const fein = [];
+    for (let i = 0; i < punkte.length; i++) {
+      if (i === 0) { fein.push(punkte[0]); continue; }
+      const p = punkte[i - 1], q = punkte[i];
+      for (let k = 1; k <= 6; k++) fein.push([p[0] + (q[0] - p[0]) * k / 6, p[1] + (q[1] - p[1]) * k / 6]);
+    }
+    for (const [fx, fy] of fein) { const x = ans.x(fx), y = ans.y(fy), h = hm * meter(fy); if (passt(x, y, h)) return { x, y, h, fx, fy, passt: true }; }
+    const [fx, fy] = fein[fein.length - 1], x = ans.x(fx), y = ans.y(fy);
+    if (o.luft > 0) return { x, y, h: hm * meter(fy), fx, fy, passt: false };
+    let h = hm * meter(fy);
+    for (let i = 0; i < 30 && !passt(x, y, h); i++) h *= 0.9;
+    return { x, y, h, fx, fy, verkleinert: true };
+  }
+
   // ---------- Unschärfe-Stufen ----------
   let filterGeht = null;
   function filterTest() {
@@ -412,7 +602,7 @@
     g.restore();
   }
 
-  window.FOKUS_SZENE = { zufall, hash, bild, levelBild, geometrie, motivBild, stufen, zeichneUnscharf, form, fokusPunkt: nr => (D.level[nr - 1] && D.level[nr - 1].hintergrund && (D.level[nr - 1].linse || D.level[nr - 1].position)) || FOKUS_PUNKT[nr] || [0.5, 0.5],
+  window.FOKUS_SZENE = { zufall, hash, bild, fertig, laden, lage, kontur, umriss, kette, gerade, stehendMass, stehendMalen, bodenWahl, levelBild, geometrie, motivBild, stufen, zeichneUnscharf, form, fokusPunkt: nr => (D.level[nr - 1] && D.level[nr - 1].hintergrund && (D.level[nr - 1].linse || D.level[nr - 1].position)) || FOKUS_PUNKT[nr] || [0.5, 0.5],
     beiBild: f => wartende.push(f),
     abbildung, hgAdresse, hgBereit: (nr, w, h) => !!bild(hgAdresse(nr, w, h), (D.level[nr - 1] || {}).umfaerben),
     // Level-Hintergründe vorab laden (danach zeichnen Start-/Endbild und Spiel neu) – nur in der Form des Bildschirms

@@ -285,14 +285,27 @@
     };
   };
 
-  // Startbild: ein Fisch unter Wasser in der Linse
-  let linsenFisch = null;
-  window.FOKUS_LINSE[3] = function (g, d, dpr) {
-    const p = pool().filter(m => m.bewegung === 'schwimmt' && m.groesse !== 'klein' && m.bild);
-    if (!linsenFisch || !p.includes(linsenFisch)) linsenFisch = p[Math.floor(Math.random() * p.length)];
-    if (!linsenFisch || !SZ.bild(linsenFisch.bild)) return;
-    const img = SZ.bild(linsenFisch.bild), w = d * 0.62, h = w * img.naturalHeight / img.naturalWidth;
-    const b = unterWasser(linsenFisch, h, 'flach', dpr);
-    g.drawImage(b.c, (d / 2 - b.w / 2 - b.pad) * dpr, (d * 0.56 - b.h / 2 - b.pad) * dpr, (b.w + b.pad * 2) * dpr, (b.h + b.pad * 2) * dpr);
+  // Startbild: ein Fisch unter Wasser in der Linse, mit weichem Schatten auf dem hellen Grund (Licht von oben) – so
+  // schwimmt er sichtbar im Wasser über dem Boden statt davor zu kleben (MZ, 26.10.2026). Motiv wird mit dem Startbild
+  // gewählt und vorab geladen (schirme.js wartet, bis es da ist).
+  window.FOKUS_LINSE[3] = {
+    waehlen() { const p = pool().filter(m => m.bewegung === 'schwimmt' && m.groesse !== 'klein' && m.bild); return { m: p[Math.floor(Math.random() * p.length)] || null }; },
+    bilder: w => (w && w.m ? [w.m.bild] : []),
+    malen(g, d, dpr, an, w) {
+      const m = w && w.m, img = m && SZ.bild(m.bild);
+      if (!img) return;
+      const fw = d * 0.62, h = fw * img.naturalHeight / img.naturalWidth, b = unterWasser(m, h, 'flach', dpr);
+      const x = d / 2 - b.w / 2, y = d * 0.5 - b.h / 2;
+      // Schatten: Umriss dunkel, flach gedrückt, weich, etwas tiefer und nach rechts (Grund liegt unter dem Fisch)
+      const t = document.createElement('canvas'); t.width = b.c.width; t.height = b.c.height;
+      const tg = t.getContext('2d'); tg.drawImage(b.c, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = 'rgb(18,48,44)'; tg.fillRect(0, 0, t.width, t.height);
+      g.save();
+      const weich = Math.max(1.5, d * 0.014) * dpr;
+      if (typeof g.filter === 'string') g.filter = `blur(${weich.toFixed(1)}px)`;
+      g.globalAlpha = 0.5;
+      g.drawImage(t, (x - b.pad + d * 0.035) * dpr, (y - b.pad + b.h + d * 0.1) * dpr, (b.w + b.pad * 2) * dpr, (b.h + b.pad * 2) * 0.5 * dpr);
+      g.restore();
+      g.drawImage(b.c, (x - b.pad) * dpr, (y - b.pad) * dpr, (b.w + b.pad * 2) * dpr, (b.h + b.pad * 2) * dpr);
+    },
   };
 })();

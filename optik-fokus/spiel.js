@@ -35,18 +35,23 @@
   }
 
   // ---------- Schnittstelle für die Level ----------
+  let letzte = null;
   const api = {
     tempo: OPT.tempo > 0 ? OPT.tempo : 1,
     oben: () => Math.max(SCH.hud.unterkante() + 12, window.FOKUS_GEMEIN ? window.FOKUS_GEMEIN.ansage.unterkante() + 8 : 0),
-    // Rückmeldung im Spiel aus texte.js (zufällige Variante): Treffer stark/knapp, zu früh, falsch, verpasst („zu spät“
-    // getippt zählt wie verpasst – die Liste enthält auch „Zu spät“)
+    // Rückmeldung im Spiel aus texte.js: Treffer nach Punkten gestaffelt (MZ, 26.10.2026) – ab starkAb „Treffer stark“
+    // (zufällig aus der Liste), ab schwachUnter „Treffer knapp“, darunter „Treffer schwach“; L5 ruft vorher ggf. 'perfekt'.
+    // Sonst zu früh, falsch, verpasst („zu spät“ getippt zählt wie verpasst – die Liste enthält auch „Zu spät“)
     // filter (optional): Wörter, die passen müssen
     rueckmeldung(art, punkte, filter) {
       const r = lv().rueckmeldung || {};
-      const fall = art === 'treffer' ? (punkte >= D.starkAb ? 'stark' : 'knapp') : art === 'spaet' ? 'verpasst' : art;
+      let fall = art === 'treffer' ? (punkte >= D.starkAb ? 'stark' : punkte >= (D.schwachUnter || 0) ? 'knapp' : 'schwach') : art === 'spaet' ? 'verpasst' : art;
+      if (fall === 'schwach' && !(r.schwach || []).length) fall = 'knapp';
       let liste = r[fall] || [];
       if (filter) { const f = liste.filter(filter); if (f.length) liste = f; }
-      return liste.length ? liste[Math.floor(Math.random() * liste.length)] : '';
+      const text = liste.length ? liste[Math.floor(Math.random() * liste.length)] : '';
+      letzte = { art, fall, punkte, text };   // Testhilfe
+      return text;
     },
     abgebrochen: () => !!(stand && stand.abbruch),
     ziel(n, m) { stand.zielNr = n; SCH.hud.ziel(n, m && m.name); },
@@ -81,7 +86,7 @@
     if (l) l.neu(OPT.ziel || 1);
     phase = 'titel';
     // Musik aus, Raumklang des Levels weich an, Wusch zum Level-Titel
-    TON.musik(false); TON.raum(lvNr); TON.effekt('wusch');
+    TON.effekteLaden(); TON.musik(false); TON.raum(lvNr); TON.effekt('wusch');
     SCH.titel(lv(), () => { if (phase === 'titel') phase = 'spiel'; }, OPT.titel);
   }
   function startbild() {
@@ -89,11 +94,23 @@
     SCH.hud.zeigen(false);
     const l = logik(lvNr);
     if (l && l.stopp) l.stopp();
-    if (l && l.vorladen) l.vorladen();
-    window.FOKUS_SZENE.vorladen(lvNr);
-    // Startbild: Musik (auch nach „Weiter“), kein Raumklang; Raumklang des Levels schon laden
-    TON.raum(0); TON.musik(true); TON.vorladen(lvNr);
-    SCH.start(lv(), FK.best(lv().id));
+    // Startbild: Musik (auch nach „Weiter“) – erst wenn die Linse steht (die Musik-Datei ist der größte Brocken und würde das
+    // Level-Bild bremsen); kein Raumklang
+    TON.raum(0);
+    // Spätes Laden (MZ, 26.10.2026): zuerst nur, was das Startbild zeigt (Level-Bild + Linsen-Motiv) – schirme.js blendet
+    // die Linse erst ein, wenn es da ist. Alles Weitere (Motive/Klänge des Levels, Raumklang, andere Hintergründe, Linse
+    // des nächsten Levels für „Weiter“) lädt danach, damit es die Linse nicht bremst.
+    const nr = lvNr;
+    SCH.start(lv(), FK.best(lv().id)).then(() => {
+      TON.effekteLaden();
+      if (lvNr !== nr) return;
+      if (phase === 'start') TON.musik(true);   // schon „Los geht’s“ getippt: keine Musik mehr
+      const l2 = logik(nr);
+      if (l2 && l2.vorladen) l2.vorladen();
+      TON.vorladen(nr);
+      window.FOKUS_SZENE.vorladen(nr);
+      if (D.level[nr] && D.level[nr].spielbar) SCH.vorbereiten(nr + 1);
+    });
   }
   function bilanzText(abbruch) {
     // Sätze aus texte.js: geschafft / fehlerfrei (10 von 10) bzw. Abbruch mit n = 2–7, n = 1, n = 0
@@ -165,7 +182,7 @@
   R_.spiel(def);
   // Hintergründe vorab laden; ist eines fertig, Start-/Endbild und Spielfläche neu zeichnen
   window.FOKUS_SZENE.beiBild(() => { SCH.malen(); Object.values(logiken).forEach(l => l.groesse(B, H, dpr, true)); });
-  window.FOKUS_SZENE.vorladen(lvNr);
+  // (alle Hintergründe lädt startbild() erst, wenn das Startbild steht – Beispiel-Endbild: schirme.js lädt seinen Hintergrund)
   document.title = D.name + ' – ' + lv().name + ' – ' + (K().kurzname || K().firma || '');
   function K() { return FK.K || {}; }
 
@@ -189,10 +206,12 @@
   window.FOKUS_TEST = {
     zustand() {
       const l = logik(lvNr);
-      return { phase, level: lvNr, rahmen: R_.zustand, punkte: stand ? stand.punkte : 0, fehler: stand ? stand.fehler : 0,
+      return { phase, level: lvNr, rahmen: R_.zustand, rueckmeldung: letzte, punkte: stand ? stand.punkte : 0, fehler: stand ? stand.fehler : 0,
         treffer: stand ? stand.treffer : 0, ergebnisse: stand ? stand.ergebnisse.slice() : [], ziel: l && phase !== 'start' ? l.zustand() : null };
     },
     titelUeberspringen: () => SCH.titelEnde(),
+    // Rückmeldung des aktuellen Levels für einen Treffer mit p Punkten (Staffel prüfen), z. B. rueckmeldung('treffer', 70)
+    rueckmeldung: (art, p) => api.rueckmeldung(art, p),
     // L1/L3: ein Ablenker deckt die untere Hälfte des Ziels ab und zieht mit (weicht nicht aus) → Lage des Ablenkers
     ueberdecken() { const l = logik(lvNr); return l && l.testUeberdecken ? l.testUeberdecken() : null; },
     // L5: jedes nahe Motiv n-mal mit der echten Platzwahl auf den leeren Tisch stellen → kleinste/größte Höhe in px

@@ -51,6 +51,8 @@ window.FOKUS = {
   textVariante: 0,
   // Rückmeldung „Treffer stark“ ab so vielen Punkten für das Ziel, darunter „Treffer knapp“
   starkAb: 80,
+  // darunter „Treffer schwach“ („Naja“), dazwischen „Treffer knapp“ („Gerade noch“) – MZ, 26.10.2026, alle Level
+  schwachUnter: 65,
 
   // Plakette im Endbild (MZ, 26.10.2026): 'reaktion' = „Ø 0,52s Reaktion“ (vom Scharfwerden bis zum Tippen).
   // Schalter bleibt: 'genauigkeit' = „Ø 0,03s neben dem schärfsten Moment“ (Abstand des Tipps zum perfekten Moment)
@@ -71,6 +73,17 @@ window.FOKUS = {
       zonen: {
         hoch: { himmel: [0.07, 0.38], horizont: 0.462, feld: [0.52, 0.64], weg: 0.86 },
         quer: { himmel: [0.08, 0.36], horizont: 0.5, feld: [0.6, 0.72], weg: 0.88 },
+      },
+      // Linse im Startbild (MZ, 26.10.2026: Motive dürfen nicht in der Luft hängen): ein Motiv steht auf der linken
+      // Fahrspur des Feldwegs. motive = echte Höhe in m (nur Motive, die sichtbar auf dem Boden stehen); je Bildform
+      // kamera = Augenhöhe in m (am Weg nachgemessen, Weg ca. 3 m breit), flach = Abflachung des Schattens,
+      // weg = Fußpunkte auf der Spur (Anteile des Bilds, von nah nach fern) – das Motiv steht am nächsten Punkt, an dem
+      // es ganz in die Linse passt (große weiter hinten); ohne = im Hochformat zu breit (stünden nur winzig ganz hinten)
+      linsenBuehne: {
+        motive: { 'Radfahrer': 1.8, 'Rennradfahrerin': 1.75, 'Jogger': 1.8, 'Wanderer': 1.8, 'Reiterin': 2.4, 'Kinderwagen': 1.7,
+          'Kuh': 1.45, 'Schaf': 0.85, 'Hund': 0.65, 'Traktor': 2.8 },
+        hoch: { kamera: 2.6, flach: 0.26, ohne: ['Reiterin', 'Traktor'], weg: [[0.43, 0.8], [0.47, 0.75], [0.55, 0.7], [0.585, 0.67], [0.605, 0.65], [0.61, 0.62]] },
+        quer: { kamera: 2.1, flach: 0.24, weg: [[0.405, 0.85], [0.42, 0.8], [0.435, 0.75], [0.45, 0.7], [0.47, 0.68], [0.49, 0.65]] },
       },
     },
     {
@@ -101,6 +114,22 @@ window.FOKUS = {
       bewertungen: ['Weitblick bewiesen', 'Nah und fern im Griff', 'Gut umgestellt', 'Etwas gezögert', 'Oft daneben'],
       hintergrund: { hoch: 'bilder/hintergrund/weitblick-stadtplatz-hoch.webp', quer: 'bilder/hintergrund/weitblick-stadtplatz-quer.webp' },
       position: [0.5, 0.78], linse: [0.62, 0.4],   // linse = Ausschnitt in der Linse des Startbilds (Häuser, Kirchturm)
+      // quer: näher heran und etwas tiefer, damit das Ding auf dem Pflaster nicht winzig über viel Tisch steht (26.10.2026)
+      linseForm: { quer: { punkt: [0.62, 0.44], zoom: 1.5 } },
+      // Linse im Startbild (MZ, 27.10.2026: Haltestelle „naaaja“): nur Motive, die als Bild wirken – keine Pfosten-Schilder
+      // (Haltestelle, Tempo, Ortsschild, Wegweiser), keine Tauben, Hund, Hahn (Rasensprenger seit 27.10.2026 gestrichen). Das Motiv steht auf dem Pflaster
+      // (Fußpunkt unter der Linsenmitte, nächster Punkt, an dem es passt; Größe nach Perspektive) und ist ganz zu sehen:
+      // luft = Abstand des Umrisses zum Linsenrand oben und seitlich (Anteil des Durchmessers), luftUnten = für Füße/Räder und
+      // Kontaktschatten. ohne = passt in dieser Bildform nirgends mit Rand (gemessen 27.10.2026) – wird dort nicht gewählt;
+      // passt ein Motiv beim Zeichnen doch nicht, wird es künftig in dieser Bildform übergangen.
+      linsenBuehne: {
+        motive: ['Akkordeonspieler', 'Postbotin', 'Straßenkehrer', 'Kinder mit Ball', 'Clown', 'Imker', 'Mopedfahrer', 'Radfahrer',
+          'Schirm-Mann', 'Marktstand', 'Eiswagen', 'Popcornwagen', 'Litfaßsäule', 'Lastenrad', 'Seifenkiste', 'Musiker mit Gitarre',
+          'Brunnenfigur', 'Trommler'],
+        luft: 0.09, luftUnten: 0.03,
+        hoch: { ohne: [] },
+        quer: { ohne: [] },
+      },
       // Geometrie des Stadtplatz-Bilds (eingemessen 26.10.2026, Anteile des Bilds: x der Breite, y der Höhe) für den
       // Fokusring: Dinge stehen in richtiger Perspektive auf Pflaster bzw. Tisch, jede Stelle hat eine Tiefe.
       //   horizont      Augenhöhe im Bild (Fluchtlinie)
@@ -111,14 +140,19 @@ window.FOKUS = {
       //   tischkante    hintere Kante der Tischplatte (Linie von links nach rechts); darunter liegt der Tisch
       //   hinten        hinterste Fußlinie für ferne Dinge (vor Brunnen, Pflanzkübeln, Haltestelle)
       //   sperren       Bereiche ohne Dinge [x0, y0, x1, y1] (z. B. Stuhllehne)
+      //   fussSperren   Bereiche ohne Fußpunkte [x0, y0, x1, y1]: Stufen/Sockel des Brunnens, Pfosten-Füße der Haltestelle,
+      //                 Kübel – jeweils mit ca. 1 % Bildhöhe Abstand davor, damit Füße sichtbar auf ebenem Pflaster stehen
+      //                 (MZ, 26.10.2026: Fußball-Fan „leicht in der Luft“ vor der Brunnenstufe)
       zonen: {
         hoch: { horizont: 0.478, kamera: 0.83, tischAuge: 0.465, tischHinten: 1.1, fassade: 0.49,
           tischkante: [[0, 0.668], [0.08, 0.663], [0.15, 0.656], [0.2, 0.652], [0.3, 0.646], [0.4, 0.643], [0.5, 0.642], [0.6, 0.642], [0.7, 0.644], [0.8, 0.648], [0.9, 0.655], [0.95, 0.662], [1, 0.668]],
           hinten: [[0, 0.556], [0.47, 0.556], [0.48, 0.523], [0.78, 0.523], [0.79, 0.538], [1, 0.538]],
-          sperren: [[0, 0.62, 0.09, 0.7]] },
+          sperren: [[0, 0.62, 0.09, 0.7]],
+          fussSperren: [[0, 0.46, 0.475, 0.567], [0.545, 0.49, 0.79, 0.537], [0.79, 0.49, 1, 0.552]] },
         quer: { horizont: 0.437, kamera: 1.74, tischAuge: 0.365, tischHinten: 1.1, fassade: 0.495,
           tischkante: [[0, 0.716], [0.05, 0.706], [0.1, 0.696], [0.15, 0.686], [0.2, 0.676], [0.25, 0.667], [0.3, 0.66], [0.33, 0.656], [0.5, 0.656], [0.6, 0.657], [0.7, 0.66], [0.8, 0.664], [0.9, 0.67], [0.94, 0.674], [0.96, 0.7], [0.98, 0.725], [1, 0.75]],
-          hinten: [[0, 0.551], [0.11, 0.551], [0.115, 0.589], [0.41, 0.589], [0.415, 0.563], [0.53, 0.563], [0.535, 0.541], [0.78, 0.541], [0.785, 0.596], [0.98, 0.596], [0.985, 0.566], [1, 0.566]] },
+          hinten: [[0, 0.551], [0.11, 0.551], [0.115, 0.589], [0.41, 0.589], [0.415, 0.563], [0.53, 0.563], [0.535, 0.541], [0.78, 0.541], [0.785, 0.596], [0.98, 0.596], [0.985, 0.566], [1, 0.566]],
+          fussSperren: [[0, 0.5, 0.115, 0.562], [0.105, 0.5, 0.42, 0.603], [0.41, 0.5, 0.535, 0.572], [0.535, 0.5, 0.785, 0.553], [0.78, 0.5, 1, 0.607]] },
       },
     },
   ],
@@ -200,7 +234,11 @@ window.FOKUS = {
   weitblick: {
     ziele: [6, 6, 6, 6, 6, 7, 7, 7, 7, 7],      // Dinge gleichzeitig in der Szene (MZ, 26.10.2026: 6–7 bleiben)
     zeit: [9.0, 6.0],            // Sekunden ab der Ansage bis „verpasst“ (Ring drehen braucht Zeit)
-    voll: [2.2, 1.5],            // Reaktion bis hier 100 Punkte, bis zur Zeitgrenze linear auf 50
+    voll: [2.2, 1.5],            // Reaktion bis hier volle Tempo-Punkte, bis zur Zeitgrenze linear auf die Hälfte
+    // Punkte je Ziel (MZ, 26.10.2026): Tempo bis 90 (Untergrenze 45, Kurve wie oben) + Schärfe bis 10 (genau in der Mitte
+    // des Schärfebereichs 10, linear auf 0 am Rand der Toleranz); Summe höchstens 100. Ab perfektAb Schärfe-Punkten
+    // Rückmeldung „Treffer perfekt“ („Gestochen scharf“) vor allen anderen. Angezeigt wird nur die Summe.
+    punkteTempo: 90, punkteTempoMin: 45, punkteSchaerfe: 10, perfektAb: 9,
     textNach: 1.2,               // mit Ton und echter Aufnahme erscheint der Text erst nach so vielen Sekunden
     toleranz: [0.09, 0.045],     // so weit (Tiefe 0–1) darf der Ring beim Tippen neben dem Ziel stehen – gegen Ende empfindlicher
     weite: [0.42, 0.3],          // ab diesem Abstand (Tiefe) ist etwas ganz unscharf – kleiner = Schärfebereich schmaler
@@ -213,6 +251,10 @@ window.FOKUS = {
     // Platzregel je Motiv: Name → Anteil des Pflasters ab der hintersten Fußlinie, in dem das Ding stehen darf (z. B. 0,06 =
     // nur ganz hinten bei den Häusern; statt fernBand). Zuerst für den Maibaum gebaut (MZ, 26.10.2026), der dann gestrichen wurde.
     nurHinten: {},
+    // Gewölbte Unterkante (MZ, 27.10.2026: Hahn auf rundem Steinsockel wirkte schwebend): Name → Anteil der Motivhöhe über dem
+    // tiefsten Punkt, bis zu dem die Unterkante als Standfläche zählt. Kontaktschatten folgt dann der ganzen Unterkante
+    // (dunkler Kern direkt an der Kante, Hof und Schlagschatten mit ihrer Neigung), die Kante selbst wird leicht abgedunkelt.
+    standKontur: { 'Hahn': 0.12 },
     dunst: 0.07,                 // ferne Dinge bekommen einen Hauch Luftdunst (passt sie ins Licht des Platzes)
     wechsel: 0.35,               // so oft verschwindet nach einem Ziel zusätzlich ein anderes Ding (die Szene lebt)
     pause: 0.8,
@@ -221,7 +263,7 @@ window.FOKUS = {
     // „Höhe ca. … m“ im Entwurf des Text Writers (daten-bauen.py → motive.js hoehe, geht vor). Nahe Dinge: vorerst diese
     // Tabelle (Höhe, die das Ding im Bild „leicht von oben“ einnimmt). null = nicht im Spiel.
     hoehe: {
-      'Handy-Nachricht': 0.12, 'Kassenbon': 0.12, 'Tischglocke': 0.08, 'Taschenrechner': 0.11, 'Armbanduhr': 0.06,
+      'Handy': 0.12, 'Kassenbon': 0.12, 'Tischglocke': 0.08, 'Taschenrechner': 0.11, 'Armbanduhr': 0.06,
       'Kugelschreiber': 0.11, 'Wasserflasche': 0.22, 'Fotoapparat': 0.09, 'Kassettenrekorder': 0.1, 'Sparschwein': 0.11,
       'Brillenetui': 0.06, 'Tacker': 0.08, 'Marmeladenglas': 0.1, 'Teetasse': 0.1, 'Zahlenschloss': 0.09, 'Frühstücksei': 0.11,
       'Pfeffermühle': 0.17, 'Kochtopf': 0.17, 'Taschenuhr': 0.07, 'Spielkarten': 0.08,
